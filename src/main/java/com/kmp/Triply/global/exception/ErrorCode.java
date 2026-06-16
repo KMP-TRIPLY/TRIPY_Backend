@@ -25,7 +25,10 @@ public enum ErrorCode {
     TRIP_ACCESS_DENIED(HttpStatus.FORBIDDEN, "해당 여행에 접근 권한이 없습니다."),
 
     // Place
-    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다.");
+    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."),
+
+    // Travel Profile
+    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;

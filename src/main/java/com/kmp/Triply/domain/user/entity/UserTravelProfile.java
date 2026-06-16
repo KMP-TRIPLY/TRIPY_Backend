@@ -73,4 +73,8 @@ public class UserTravelProfile {
         this.moveType = moveType;
         this.companionType = companionType;
     }
+
+    public void updateStyleType(StyleType styleType) {
+        this.styleType = styleType;
+    }
 }
