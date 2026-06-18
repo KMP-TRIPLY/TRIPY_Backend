@@ -1,8 +1,10 @@
 package com.kmp.Triply.domain.user.service;
 
 import com.kmp.Triply.domain.user.dto.request.UserUpdateRequest;
+import com.kmp.Triply.domain.user.dto.response.UserProfileResponse;
 import com.kmp.Triply.domain.user.dto.response.UserResponse;
 import com.kmp.Triply.domain.user.entity.User;
+import com.kmp.Triply.domain.user.repository.RefreshTokenRepository;
 import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
@@ -16,12 +18,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Override
     public UserResponse getUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         return UserResponse.from(user);
+    }
+
+    @Override
+    public UserProfileResponse getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        return UserProfileResponse.from(user);
     }
 
     @Override
@@ -39,5 +49,14 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         userRepository.delete(user);
+    }
+
+    @Override
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        user.softDelete();
+        refreshTokenRepository.deleteByUserId(userId);
     }
 }
