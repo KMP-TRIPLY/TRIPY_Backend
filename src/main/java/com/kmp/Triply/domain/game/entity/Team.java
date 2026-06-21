@@ -65,6 +65,10 @@ public class Team {
         this.hintCountUsed++;
     }
 
+    public void startPlaying() {
+        this.status = TeamStatus.PLAYING;
+    }
+
     public void finish(short rank) {
         this.status = TeamStatus.FINISHED;
         this.rank = rank;
