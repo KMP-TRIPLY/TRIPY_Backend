@@ -1,12 +1,15 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: Triply
 
   # ===== Database =====
   datasource:
-    url: jdbc:postgresql://localhost:5432/triply
-    username: postgres
-    password: password
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   # ===== JPA =====
@@ -22,8 +25,8 @@ spring:
   # ===== Redis =====
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
 
   # ===== OAuth2 =====
   security:
@@ -75,11 +78,11 @@ spring:
 # ===== JWT =====
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiry: 1800000       # 30분 (ms)
-  refresh-token-expiry: 1209600000   # 14일 (ms)
+  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY}       # 30분 (ms)
+  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY}   # 14일 (ms)
 
 # ===== App =====
 # 프론트엔드 콜백 URL (웹: http://localhost:3000/oauth2/callback, 앱: tripy://auth/callback)
 app:
   oauth2:
-    redirect-uri: http://localhost:3000/oauth2/callback
+    redirect-uri: ${APP_OAUTH2_REDIRECT_URI}
