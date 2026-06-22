@@ -1,6 +1,7 @@
 package com.kmp.Triply.domain.game.entity;
 
 import com.kmp.Triply.domain.course.entity.Course;
+import com.kmp.Triply.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -29,6 +30,10 @@ public class GameRoom {
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "host_user_id", nullable = false)
+    private User host;
+
     @Column(name = "room_code", nullable = false, unique = true, length = 8)
     private String roomCode;
 
@@ -54,8 +59,9 @@ public class GameRoom {
     private LocalDateTime createdAt;
 
     @Builder
-    private GameRoom(Course course, String roomCode, GameMode gameMode, short maxTeams) {
+    private GameRoom(Course course, User host, String roomCode, GameMode gameMode, short maxTeams) {
         this.course = course;
+        this.host = host;
         this.roomCode = roomCode;
         this.gameMode = gameMode;
         this.maxTeams = maxTeams;

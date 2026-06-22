@@ -28,7 +28,19 @@ public enum ErrorCode {
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."),
 
     // Travel Profile
-    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다.");
+    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다."),
+
+    // Course
+    COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "코스를 찾을 수 없습니다."),
+
+    // Game
+    GAME_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 방을 찾을 수 없습니다."),
+    TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다."),
+    TEAM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "팀 멤버를 찾을 수 없습니다."),
+    INVALID_GAME_ROOM_STATUS(HttpStatus.BAD_REQUEST, "현재 게임 방 상태에서 수행할 수 없는 요청입니다."),
+    ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
+    ALREADY_JOINED_ROOM(HttpStatus.CONFLICT, "이미 참여한 게임 방입니다."),
+    GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다.");
 
     private final HttpStatus status;
     private final String message;
