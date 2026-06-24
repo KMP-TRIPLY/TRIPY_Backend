@@ -26,3 +26,7 @@ spring:
 
 jwt:
   secret: your_jwt_secret_base64_encoded
+
+tourism:
+  api:
+    key: your_tourism_api_key

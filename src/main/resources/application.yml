@@ -83,3 +83,10 @@ jwt:
 app:
   oauth2:
     redirect-uri: http://localhost:3000/oauth2/callback
+
+# ===== Korea Tourism Open API =====
+tourism:
+  api:
+    key: ${TOURISM_API_KEY}
+    base-url: https://apis.data.go.kr/B551011/LocgoHubTarService1
+    cache-hours: 24

@@ -28,7 +28,10 @@ public enum ErrorCode {
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."),
 
     // Travel Profile
-    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다.");
+    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다."),
+
+    // Tourism API
+    TOURISM_API_ERROR(HttpStatus.BAD_GATEWAY, "한국관광공사 API 호출에 실패했습니다.");
 
     private final HttpStatus status;
     private final String message;

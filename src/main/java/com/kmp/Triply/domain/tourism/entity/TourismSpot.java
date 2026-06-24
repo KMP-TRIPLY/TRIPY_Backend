@@ -41,12 +41,19 @@ public class TourismSpot {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
+    @Column(name = "area_code", length = 10)
+    private String areaCode;
+
+    @Column(name = "rank")
+    private Integer rank;
+
     @Column(name = "cached_at", nullable = false)
     private LocalDateTime cachedAt;
 
     @Builder
     private TourismSpot(String openApiContentId, String name, SpotCategory category,
-                        String address, BigDecimal lat, BigDecimal lng, String thumbnailUrl) {
+                        String address, BigDecimal lat, BigDecimal lng, String thumbnailUrl,
+                        String areaCode, Integer rank) {
         this.openApiContentId = openApiContentId;
         this.name = name;
         this.category = category;
@@ -54,6 +61,22 @@ public class TourismSpot {
         this.lat = lat;
         this.lng = lng;
         this.thumbnailUrl = thumbnailUrl;
+        this.areaCode = areaCode;
+        this.rank = rank;
+        this.cachedAt = LocalDateTime.now();
+    }
+
+    public void update(String name, SpotCategory category, String address,
+                       BigDecimal lat, BigDecimal lng, String thumbnailUrl,
+                       String areaCode, Integer rank) {
+        this.name = name;
+        this.category = category;
+        this.address = address;
+        this.lat = lat;
+        this.lng = lng;
+        this.thumbnailUrl = thumbnailUrl;
+        this.areaCode = areaCode;
+        this.rank = rank;
         this.cachedAt = LocalDateTime.now();
     }
 }
