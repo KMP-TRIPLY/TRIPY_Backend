@@ -85,4 +85,11 @@ jwt:
 # 프론트엔드 콜백 URL (웹: http://localhost:3000/oauth2/callback, 앱: tripy://auth/callback)
 app:
   oauth2:
-    redirect-uri: ${APP_OAUTH2_REDIRECT_URI}
+    redirect-uri: http://localhost:3000/oauth2/callback
+
+# ===== Korea Tourism Open API =====
+tourism:
+  api:
+    key: ${TOURISM_API_KEY}
+    base-url: https://apis.data.go.kr/B551011/LocgoHubTarService1
+    cache-hours: 24
