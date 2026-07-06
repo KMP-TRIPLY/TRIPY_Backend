@@ -40,7 +40,12 @@ public enum ErrorCode {
     INVALID_GAME_ROOM_STATUS(HttpStatus.BAD_REQUEST, "현재 게임 방 상태에서 수행할 수 없는 요청입니다."),
     ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
     ALREADY_JOINED_ROOM(HttpStatus.CONFLICT, "이미 참여한 게임 방입니다."),
-    GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다.");
+    GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
+
+    // Reward
+    COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),
+    COUPON_NOT_ISSUABLE(HttpStatus.BAD_REQUEST, "발급할 수 없는 쿠폰입니다."),
+    REWARD_SETTLEMENT_UNAVAILABLE(HttpStatus.BAD_REQUEST, "게임 종료 후 보상을 정산할 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;
