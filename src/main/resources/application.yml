@@ -36,7 +36,7 @@ spring:
           kakao:
             client-id: ${KAKAO_CLIENT_ID}
             client-secret: ${KAKAO_CLIENT_SECRET}
-            redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"
+            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/kakao"
             authorization-grant-type: authorization_code
             scope:
               - profile_nickname
