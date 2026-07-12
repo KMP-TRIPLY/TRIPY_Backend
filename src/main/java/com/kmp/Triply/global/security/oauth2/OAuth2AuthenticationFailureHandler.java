@@ -23,7 +23,9 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
                                         AuthenticationException exception) throws IOException {
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("error", exception.getMessage())
-                .build().toUriString();
+                .build()
+                .encode()
+                .toUriString();
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }
