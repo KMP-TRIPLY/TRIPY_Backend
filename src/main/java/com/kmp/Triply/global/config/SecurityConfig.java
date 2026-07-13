@@ -3,6 +3,7 @@ package com.kmp.Triply.global.config;
 import com.kmp.Triply.global.security.jwt.JwtAuthenticationFilter;
 import com.kmp.Triply.global.security.jwt.JwtProvider;
 import com.kmp.Triply.global.security.oauth2.CustomOAuth2UserService;
+import com.kmp.Triply.global.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler successHandler;
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -33,7 +35,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/**",
@@ -45,6 +47,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated())
             .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(endpoint -> endpoint
+                    .authorizationRequestRepository(authorizationRequestRepository))
                 .userInfoEndpoint(userInfo -> userInfo
                     .userService(customOAuth2UserService))
                 .successHandler(successHandler)

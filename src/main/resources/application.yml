@@ -50,7 +50,7 @@ spring:
           naver:
             client-id: ${NAVER_CLIENT_ID}
             client-secret: ${NAVER_CLIENT_SECRET}
-            redirect-uri: "http://localhost:8080/login/oauth2/code/naver"
+            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/naver"
             authorization-grant-type: authorization_code
             scope:
               - name
@@ -81,14 +81,14 @@ spring:
 # ===== JWT =====
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY}       # 30분 (ms)
-  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY}   # 14일 (ms)
+  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY} # 30분 (ms)
+  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY} # 14일 (ms)
 
 # ===== App =====
 # 프론트엔드 콜백 URL (웹: http://localhost:3000/oauth2/callback, 앱: tripy://auth/callback)
 app:
   oauth2:
-    redirect-uri: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/callback}
+    redirect-uri: ${APP_OAUTH2_REDIRECT_URI:https://triply-six.vercel.app/oauth2/callback}
 
 # ===== Korea Tourism Open API =====
 tourism:
