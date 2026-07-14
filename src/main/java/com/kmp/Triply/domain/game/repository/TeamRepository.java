@@ -11,5 +11,10 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     List<Team> findAllByGameRoomIdOrderByTotalScoreDescCreatedAtAsc(Long gameRoomId);
 
+    List<Team> findAllByGameRoomCourseIdAndGameRoomStatusOrderByTotalScoreDescCreatedAtAsc(
+            Long courseId,
+            com.kmp.Triply.domain.game.entity.GameStatus gameStatus
+    );
+
     long countByGameRoomId(Long gameRoomId);
 }
