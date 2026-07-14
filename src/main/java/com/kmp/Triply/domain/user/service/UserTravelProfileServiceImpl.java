@@ -22,9 +22,10 @@ public class UserTravelProfileServiceImpl implements UserTravelProfileService {
 
     @Override
     public UserTravelProfileResponse getMyTravelProfile(Long userId) {
-        UserTravelProfile profile = userTravelProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.TRAVEL_PROFILE_NOT_FOUND));
-        return UserTravelProfileResponse.from(profile);
+        // 프로필 미저장 유저는 404 대신 200 + data:null 반환 (신규 유저 정상 케이스)
+        return userTravelProfileRepository.findByUserId(userId)
+                .map(UserTravelProfileResponse::from)
+                .orElse(null);
     }
 
     @Override

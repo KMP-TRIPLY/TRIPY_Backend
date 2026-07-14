@@ -69,9 +69,10 @@ public class User {
         this.socialId = socialId;
     }
 
+    /** 전달된 값만 갱신 (null 이면 기존 값 유지 — 닉네임만 수정해도 프로필 이미지가 지워지지 않도록) */
     public void updateProfile(String nickname, String profileImg) {
-        this.nickname = nickname;
-        this.profileImg = profileImg;
+        if (nickname != null && !nickname.isBlank()) this.nickname = nickname;
+        if (profileImg != null) this.profileImg = profileImg;
     }
 
     public void levelUp() {

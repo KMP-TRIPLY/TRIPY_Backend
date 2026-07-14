@@ -32,6 +32,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = userRepository.findBySocialProviderAndSocialId(provider, userInfo.getSocialId())
                 .orElseGet(() -> registerNewUser(userInfo, provider));
 
+        // 프로필 이미지가 비어 있으면 소셜 프로필 이미지로 채움 (기존 null 계정 로그인 시 복구)
+        if (user.getProfileImg() == null && userInfo.getProfileImg() != null) {
+            user.updateProfile(null, userInfo.getProfileImg());
+        }
+
         return new CustomOAuth2User(user, oAuth2User.getAttributes());
     }
 
