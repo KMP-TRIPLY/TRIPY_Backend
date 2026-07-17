@@ -11,6 +11,9 @@ import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.ranking.dto.request.RankingMode;
 import com.kmp.Triply.domain.ranking.dto.response.RankingEntryResponse;
 import com.kmp.Triply.domain.ranking.dto.response.RankingResponse;
+import com.kmp.Triply.domain.ranking.entity.Ranking;
+import com.kmp.Triply.domain.ranking.entity.RankingType;
+import com.kmp.Triply.domain.ranking.repository.RankingRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class RankingServiceImpl implements RankingService {
     private final TeamRepository teamRepository;
     private final CourseRepository courseRepository;
     private final MissionAttemptRepository missionAttemptRepository;
+    private final RankingRepository rankingRepository;
 
     @Override
     public RankingResponse getLiveRankings(Long gameRoomId, RankingMode mode) {
@@ -59,42 +63,66 @@ public class RankingServiceImpl implements RankingService {
 
         List<RankingEntryResponse> rankings = switch (mode) {
             case TEAM -> getCourseTeamRankings(courseId);
-            case PERSONAL -> toPersonalRankings(missionAttemptRepository.findPersonalCourseRankingsByCourseId(courseId));
+            case PERSONAL -> getCoursePersonalRankings(courseId);
         };
 
         return RankingResponse.of(mode, null, course.getId(), course.getTitle(), rankings);
     }
 
     private List<RankingEntryResponse> getLiveTeamRankings(Long gameRoomId) {
-        List<Team> teams = teamRepository.findAllByGameRoomIdOrderByTotalScoreDescCreatedAtAsc(gameRoomId);
-        return IntStream.range(0, teams.size())
-                .mapToObj(index -> RankingEntryResponse.of(
-                        index + 1,
-                        teams.get(index).getId(),
-                        teams.get(index).getTeamName(),
-                        teams.get(index).getTotalScore(),
-                        null,
-                        null,
-                        teams.get(index).getHintCountUsed()
-                ))
+        List<Object[]> rows = teamRepository.findTeamRankingRowsByGameRoomId(gameRoomId);
+        return IntStream.range(0, rows.size())
+                .mapToObj(index -> {
+                    Team team = (Team) rows.get(index)[0];
+                    return RankingEntryResponse.of(
+                            index + 1,
+                            team.getId(),
+                            team.getTeamName(),
+                            ((Number) rows.get(index)[1]).intValue(),
+                            null,
+                            ((Number) rows.get(index)[2]).shortValue(),
+                            ((Number) rows.get(index)[3]).shortValue()
+                    );
+                })
                 .toList();
     }
 
     private List<RankingEntryResponse> getCourseTeamRankings(Long courseId) {
-        List<Team> teams = teamRepository.findAllByGameRoomCourseIdAndGameRoomStatusOrderByTotalScoreDescCreatedAtAsc(
+        List<Ranking> storedRankings = rankingRepository.findAllByGameRoomCourseIdAndRankingTypeOrderByFinalScoreDescRankAsc(
                 courseId,
-                GameStatus.FINISHED
+                RankingType.TEAM
         );
-        return IntStream.range(0, teams.size())
-                .mapToObj(index -> RankingEntryResponse.of(
-                        index + 1,
-                        teams.get(index).getId(),
-                        teams.get(index).getTeamName(),
-                        teams.get(index).getTotalScore(),
-                        null,
-                        null,
-                        teams.get(index).getHintCountUsed()
-                ))
+        return toStoredRankings(storedRankings);
+    }
+
+    private List<RankingEntryResponse> getCoursePersonalRankings(Long courseId) {
+        List<Ranking> storedRankings = rankingRepository.findAllByGameRoomCourseIdAndRankingTypeOrderByFinalScoreDescRankAsc(
+                courseId,
+                RankingType.PERSONAL
+        );
+        return toStoredRankings(storedRankings);
+    }
+
+    private List<RankingEntryResponse> toStoredRankings(List<Ranking> rankings) {
+        return IntStream.range(0, rankings.size())
+                .mapToObj(index -> {
+                    Ranking ranking = rankings.get(index);
+                    Long targetId = ranking.getRankingType() == RankingType.TEAM
+                            ? ranking.getTeam().getId()
+                            : ranking.getUser().getId();
+                    String targetName = ranking.getRankingType() == RankingType.TEAM
+                            ? ranking.getTeam().getTeamName()
+                            : ranking.getUser().getNickname();
+                    return RankingEntryResponse.of(
+                            index + 1,
+                            targetId,
+                            targetName,
+                            ranking.getFinalScore(),
+                            ranking.getElapsedSeconds(),
+                            ranking.getMissionClearCount(),
+                            ranking.getHintUsedCount()
+                    );
+                })
                 .toList();
     }
 

@@ -26,4 +26,15 @@ public class TeamRankingResponse {
                 .hintCountUsed(team.getHintCountUsed())
                 .build();
     }
+
+    public static TeamRankingResponse of(Team team, int rank, int totalScore, short hintCountUsed) {
+        return TeamRankingResponse.builder()
+                .rank(rank)
+                .teamId(team.getId())
+                .teamName(team.getTeamName())
+                .status(team.getStatus())
+                .totalScore(totalScore)
+                .hintCountUsed(hintCountUsed)
+                .build();
+    }
 }

@@ -16,8 +16,12 @@ import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.entity.TeamMember;
 import com.kmp.Triply.domain.game.entity.TeamRole;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
+import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
 import com.kmp.Triply.domain.game.repository.TeamRepository;
+import com.kmp.Triply.domain.ranking.entity.Ranking;
+import com.kmp.Triply.domain.ranking.entity.RankingType;
+import com.kmp.Triply.domain.ranking.repository.RankingRepository;
 import com.kmp.Triply.domain.user.entity.User;
 import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
@@ -29,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -43,6 +48,8 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final GameRoomRepository gameRoomRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final MissionAttemptRepository missionAttemptRepository;
+    private final RankingRepository rankingRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
@@ -120,11 +127,13 @@ public class GameRoomServiceImpl implements GameRoomService {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
 
-        List<Team> teams = teamRepository.findAllByGameRoomIdOrderByTotalScoreDescCreatedAtAsc(roomId);
-        for (int index = 0; index < teams.size(); index++) {
-            teams.get(index).finish((short) (index + 1));
+        List<Object[]> teamRankingRows = teamRepository.findTeamRankingRowsByGameRoomId(roomId);
+        for (int index = 0; index < teamRankingRows.size(); index++) {
+            Team team = (Team) teamRankingRows.get(index)[0];
+            team.finish((short) (index + 1));
         }
         gameRoom.finish();
+        saveFinalRankings(gameRoom, teamRankingRows);
 
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
         realtimeNotifier.publish(gameRoom.getId(), "ROOM_FINISHED", "게임이 종료되고 점수가 잠겼습니다.", response);
@@ -137,8 +146,8 @@ public class GameRoomServiceImpl implements GameRoomService {
             throw new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND);
         }
 
-        List<Team> teams = teamRepository.findAllByGameRoomIdOrderByTotalScoreDescCreatedAtAsc(roomId);
-        return toRankings(teams);
+        List<Object[]> teamRankingRows = teamRepository.findTeamRankingRowsByGameRoomId(roomId);
+        return toRankings(teamRankingRows);
     }
 
     @Override
@@ -248,9 +257,53 @@ public class GameRoomServiceImpl implements GameRoomService {
         return roomCode;
     }
 
-    private List<TeamRankingResponse> toRankings(List<Team> teams) {
-        return java.util.stream.IntStream.range(0, teams.size())
-                .mapToObj(index -> TeamRankingResponse.from(teams.get(index), index + 1))
+    private List<TeamRankingResponse> toRankings(List<Object[]> teamRankingRows) {
+        return java.util.stream.IntStream.range(0, teamRankingRows.size())
+                .mapToObj(index -> {
+                    Object[] row = teamRankingRows.get(index);
+                    return TeamRankingResponse.of(
+                            (Team) row[0],
+                            index + 1,
+                            ((Number) row[1]).intValue(),
+                            ((Number) row[3]).shortValue()
+                    );
+                })
                 .toList();
+    }
+
+    private void saveFinalRankings(GameRoom gameRoom, List<Object[]> teamRankingRows) {
+        rankingRepository.deleteByGameRoomId(gameRoom.getId());
+
+        List<Ranking> rankings = new ArrayList<>();
+        for (int index = 0; index < teamRankingRows.size(); index++) {
+            Object[] row = teamRankingRows.get(index);
+            Team team = (Team) row[0];
+            rankings.add(Ranking.builder()
+                    .gameRoom(gameRoom)
+                    .team(team)
+                    .rankingType(RankingType.TEAM)
+                    .rank((short) (index + 1))
+                    .finalScore(((Number) row[1]).intValue())
+                    .missionClearCount(((Number) row[2]).shortValue())
+                    .hintUsedCount(((Number) row[3]).shortValue())
+                    .build());
+        }
+
+        List<Object[]> personalRankingRows = missionAttemptRepository.findPersonalFinalRankingRowsByGameRoomId(gameRoom.getId());
+        for (int index = 0; index < personalRankingRows.size(); index++) {
+            Object[] row = personalRankingRows.get(index);
+            User user = userRepository.getReferenceById((Long) row[0]);
+            rankings.add(Ranking.builder()
+                    .gameRoom(gameRoom)
+                    .user(user)
+                    .rankingType(RankingType.PERSONAL)
+                    .rank((short) (index + 1))
+                    .finalScore(((Number) row[2]).intValue())
+                    .missionClearCount(((Number) row[3]).shortValue())
+                    .hintUsedCount(((Number) row[4]).shortValue())
+                    .build());
+        }
+
+        rankingRepository.saveAll(rankings);
     }
 }
