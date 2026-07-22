@@ -29,6 +29,12 @@ public class TourismSpot {
     @Column(length = 50)
     private SpotCategory category;
 
+    @Column(name = "category_large", length = 50)
+    private String categoryLarge;   // TourAPI hubCtgryLclsNm
+
+    @Column(name = "category_middle", length = 50)
+    private String categoryMiddle;  // TourAPI hubCtgryMclsNm
+
     @Column(length = 300)
     private String address;
 
@@ -52,11 +58,14 @@ public class TourismSpot {
 
     @Builder
     private TourismSpot(String openApiContentId, String name, SpotCategory category,
+                        String categoryLarge, String categoryMiddle,
                         String address, BigDecimal lat, BigDecimal lng, String thumbnailUrl,
                         String areaCode, Integer rank) {
         this.openApiContentId = openApiContentId;
         this.name = name;
         this.category = category;
+        this.categoryLarge = categoryLarge;
+        this.categoryMiddle = categoryMiddle;
         this.address = address;
         this.lat = lat;
         this.lng = lng;
@@ -66,11 +75,14 @@ public class TourismSpot {
         this.cachedAt = LocalDateTime.now();
     }
 
-    public void update(String name, SpotCategory category, String address,
+    public void update(String name, SpotCategory category,
+                       String categoryLarge, String categoryMiddle, String address,
                        BigDecimal lat, BigDecimal lng, String thumbnailUrl,
                        String areaCode, Integer rank) {
         this.name = name;
         this.category = category;
+        this.categoryLarge = categoryLarge;
+        this.categoryMiddle = categoryMiddle;
         this.address = address;
         this.lat = lat;
         this.lng = lng;
