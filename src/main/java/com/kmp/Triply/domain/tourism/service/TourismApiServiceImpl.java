@@ -213,12 +213,15 @@ public class TourismApiServiceImpl implements TourismApiService {
 
                 tourismSpotRepository.findByOpenApiContentId(item.getContentId())
                         .ifPresentOrElse(
-                                spot -> spot.update(item.getTitle(), category, address,
+                                spot -> spot.update(item.getTitle(), category,
+                                        item.getCategoryLarge(), item.getCategoryMiddle(), address,
                                         lat, lng, null, item.getAreaCd(), item.getRank()),
                                 () -> tourismSpotRepository.save(TourismSpot.builder()
                                         .openApiContentId(item.getContentId())
                                         .name(item.getTitle())
                                         .category(category)
+                                        .categoryLarge(item.getCategoryLarge())
+                                        .categoryMiddle(item.getCategoryMiddle())
                                         .address(address)
                                         .lat(lat)
                                         .lng(lng)

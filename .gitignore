@@ -40,3 +40,6 @@ out/
 .env
 src/main/resources/.env
 src/main/resources/application-local.yml
+
+### Local dev ###
+docker-compose.yml
