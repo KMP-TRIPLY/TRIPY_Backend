@@ -1,10 +1,13 @@
 package com.kmp.Triply.domain.game.service;
 
+import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
+import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamRankingResponse;
 
@@ -19,6 +22,10 @@ public interface GameRoomService {
     GameRoomResponse startRoom(Long userId, GameRoomStartRequest request);
 
     GameRoomResponse endRoom(Long userId, Long roomId);
+
+    GameRoomResponse changeCourse(Long userId, Long roomId, GameRoomCourseChangeRequest request);
+
+    TeamLeaveResponse leaveRoom(Long userId, Long roomId, TeamLeaveRequest request);
 
     List<TeamRankingResponse> getRankings(Long roomId);
 

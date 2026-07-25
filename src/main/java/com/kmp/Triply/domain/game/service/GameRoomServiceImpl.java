@@ -2,21 +2,26 @@ package com.kmp.Triply.domain.game.service;
 
 import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
+import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
+import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamRankingResponse;
 import com.kmp.Triply.domain.game.entity.GameMode;
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.GameStatus;
 import com.kmp.Triply.domain.game.entity.Team;
+import com.kmp.Triply.domain.game.entity.TeamLeaveHistory;
 import com.kmp.Triply.domain.game.entity.TeamMember;
 import com.kmp.Triply.domain.game.entity.TeamRole;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
+import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
 import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.ranking.entity.Ranking;
@@ -28,6 +33,7 @@ import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -48,12 +54,14 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final GameRoomRepository gameRoomRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final TeamLeaveHistoryRepository teamLeaveHistoryRepository;
     private final MissionAttemptRepository missionAttemptRepository;
     private final RankingRepository rankingRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
+    private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
@@ -67,6 +75,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .course(course)
                 .host(host)
                 .roomCode(generateRoomCode())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .gameMode(GameMode.TEAM)
                 .maxTeams(request.getMaxTeams())
                 .build());
@@ -85,6 +94,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
 
         validateWaitingRoom(gameRoom);
+        validatePassword(gameRoom, request.getPassword());
         if (teamMemberRepository.existsByTeamGameRoomIdAndUserId(gameRoom.getId(), userId)) {
             throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
         }
@@ -115,6 +125,54 @@ public class GameRoomServiceImpl implements GameRoomService {
 
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
         realtimeNotifier.publish(gameRoom.getId(), "ROOM_STARTED", "게임이 시작되었습니다.", response);
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public GameRoomResponse changeCourse(Long userId, Long roomId, GameRoomCourseChangeRequest request) {
+        GameRoom gameRoom = getRoom(roomId);
+        validateHost(gameRoom, userId);
+        validateWaitingRoom(gameRoom);
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new CustomException(ErrorCode.COURSE_NOT_FOUND));
+
+        gameRoom.changeCourse(course);
+        GameRoomResponse response = GameRoomResponse.from(gameRoom);
+        realtimeNotifier.publish(gameRoom.getId(), "COURSE_CHANGED", "게임 방 코스가 변경되었습니다.", response);
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public TeamLeaveResponse leaveRoom(Long userId, Long roomId, TeamLeaveRequest request) {
+        GameRoom gameRoom = getRoom(roomId);
+        if (gameRoom.getStatus() != GameStatus.RUNNING) {
+            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
+        }
+
+        TeamMember teamMember = teamMemberRepository.findByTeamGameRoomIdAndUserIdAndIsActiveTrue(roomId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.TEAM_MEMBER_NOT_FOUND));
+        if (teamMember.getRole() == TeamRole.LEADER) {
+            throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
+        }
+
+        int preservedScore = missionAttemptRepository.sumScoreByTeamIdAndUserId(
+                teamMember.getTeam().getId(),
+                userId
+        );
+        teamMember.leave();
+        TeamLeaveHistory history = teamLeaveHistoryRepository.save(TeamLeaveHistory.builder()
+                .gameRoom(gameRoom)
+                .team(teamMember.getTeam())
+                .user(teamMember.getUser())
+                .reasonType(request.getReasonType())
+                .reasonDetail(request.getReasonDetail())
+                .preservedScore(preservedScore)
+                .build());
+
+        TeamLeaveResponse response = TeamLeaveResponse.from(history);
+        realtimeNotifier.publish(roomId, "MEMBER_LEFT", "멤버가 게임 방에서 탈퇴했습니다.", response);
         return response;
     }
 
@@ -238,6 +296,12 @@ public class GameRoomServiceImpl implements GameRoomService {
     private void validateWaitingRoom(GameRoom gameRoom) {
         if (gameRoom.getStatus() != GameStatus.WAITING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
+        }
+    }
+
+    private void validatePassword(GameRoom gameRoom, String password) {
+        if (!passwordEncoder.matches(password, gameRoom.getPasswordHash())) {
+            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_PASSWORD);
         }
     }
 

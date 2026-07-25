@@ -32,6 +32,7 @@ public enum ErrorCode {
 
     // Tourism API
     TOURISM_API_ERROR(HttpStatus.BAD_GATEWAY, "한국관광공사 API 호출에 실패했습니다."),
+
     // Course
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "코스를 찾을 수 없습니다."),
     COURSE_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "코스 스팟을 찾을 수 없습니다."),
@@ -45,6 +46,7 @@ public enum ErrorCode {
     ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
     ALREADY_JOINED_ROOM(HttpStatus.CONFLICT, "이미 참여한 게임 방입니다."),
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
+    INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
 
     // Reward
     COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),

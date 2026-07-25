@@ -37,11 +37,22 @@ public class TeamMember {
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
+    @Column(name = "left_at")
+    private LocalDateTime leftAt;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     @Builder
     private TeamMember(Team team, User user, TeamRole role) {
         this.team = team;
         this.user = user;
         this.role = role;
         this.joinedAt = LocalDateTime.now();
+    }
+
+    public void leave() {
+        this.isActive = false;
+        this.leftAt = LocalDateTime.now();
     }
 }

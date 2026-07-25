@@ -6,6 +6,7 @@ import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.entity.TeamMember;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
+import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
 import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.reward.dto.request.RewardSettleRequest;
@@ -46,6 +47,7 @@ public class RewardServiceImpl implements RewardService {
     private final GameRoomRepository gameRoomRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final TeamLeaveHistoryRepository teamLeaveHistoryRepository;
     private final MissionAttemptRepository missionAttemptRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -73,7 +75,7 @@ public class RewardServiceImpl implements RewardService {
         for (int index = 0; index < teams.size(); index++) {
             Team team = teams.get(index);
             int rank = index + 1;
-            List<TeamMember> members = teamMemberRepository.findAllByTeamId(team.getId());
+            List<TeamMember> members = teamMemberRepository.findAllByTeamIdAndIsActiveTrue(team.getId());
             List<RewardSettlementMemberResponse> memberSettlements = getMemberSettlements(team, members);
             int activeMemberScore = getActiveMemberScore(team, members);
             int redistributableScore = getRedistributableScore(team, activeMemberScore);
@@ -143,7 +145,8 @@ public class RewardServiceImpl implements RewardService {
 
     private int getRedistributableScore(Team team, int activeMemberScore) {
         int attemptedTeamScore = missionAttemptRepository.sumScoreByTeamId(team.getId());
-        int baseTeamScore = Math.max(team.getTotalScore(), attemptedTeamScore);
+        int leftMemberScore = teamLeaveHistoryRepository.sumPreservedScoreByTeamId(team.getId());
+        int baseTeamScore = Math.max(Math.max(team.getTotalScore(), attemptedTeamScore), activeMemberScore + leftMemberScore);
         return Math.max(0, baseTeamScore - activeMemberScore);
     }
 
