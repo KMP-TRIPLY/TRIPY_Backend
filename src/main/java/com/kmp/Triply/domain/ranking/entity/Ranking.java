@@ -2,6 +2,7 @@ package com.kmp.Triply.domain.ranking.entity;
 
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.Team;
+import com.kmp.Triply.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,8 +12,9 @@ import java.time.LocalDateTime;
 @Table(
     name = "rankings",
     indexes = {
-        @Index(name = "idx_rankings_room_team", columnList = "game_room_id, team_id", unique = true),
-        @Index(name = "idx_rankings_room_rank", columnList = "game_room_id, rank")
+        @Index(name = "idx_rankings_room_type_rank", columnList = "game_room_id, ranking_type, rank"),
+        @Index(name = "idx_rankings_room_team", columnList = "game_room_id, team_id"),
+        @Index(name = "idx_rankings_room_user", columnList = "game_room_id, user_id")
     }
 )
 @Getter
@@ -28,8 +30,16 @@ public class Ranking {
     private GameRoom gameRoom;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "team_id", nullable = false)
+    @JoinColumn(name = "team_id")
     private Team team;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ranking_type", nullable = false, length = 20)
+    private RankingType rankingType = RankingType.TEAM;
 
     @Column(nullable = false, columnDefinition = "smallint")
     private short rank;
@@ -50,10 +60,13 @@ public class Ranking {
     private LocalDateTime recordedAt;
 
     @Builder
-    private Ranking(GameRoom gameRoom, Team team, short rank, int finalScore,
+    private Ranking(GameRoom gameRoom, Team team, User user, RankingType rankingType,
+                    short rank, int finalScore,
                     short missionClearCount, short hintUsedCount, Integer elapsedSeconds) {
         this.gameRoom = gameRoom;
         this.team = team;
+        this.user = user;
+        this.rankingType = rankingType;
         this.rank = rank;
         this.finalScore = finalScore;
         this.missionClearCount = missionClearCount;
