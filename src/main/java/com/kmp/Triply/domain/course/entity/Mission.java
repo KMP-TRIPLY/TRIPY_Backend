@@ -36,7 +36,7 @@ public class Mission {
     private String answer;
 
     // [{label, value, is_correct}] 형태의 JSON 문자열
-    @Column(columnDefinition = "json")
+    @Column(columnDefinition = "text")
     private String choices;
 
     @Column(columnDefinition = "text")

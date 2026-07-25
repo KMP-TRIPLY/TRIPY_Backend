@@ -34,6 +34,8 @@ public enum ErrorCode {
     TOURISM_API_ERROR(HttpStatus.BAD_GATEWAY, "한국관광공사 API 호출에 실패했습니다."),
     // Course
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "코스를 찾을 수 없습니다."),
+    COURSE_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "코스 스팟을 찾을 수 없습니다."),
+    TOURISM_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "관광지 정보를 찾을 수 없습니다."),
 
     // Game
     GAME_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "게임 방을 찾을 수 없습니다."),

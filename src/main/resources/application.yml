@@ -89,6 +89,8 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${APP_OAUTH2_REDIRECT_URI:https://triply-six.vercel.app/oauth2/callback}
+  seed:
+    enabled: ${APP_SEED_ENABLED:false}
 
 # ===== Korea Tourism Open API =====
 tourism:
