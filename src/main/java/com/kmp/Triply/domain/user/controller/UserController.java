@@ -46,8 +46,10 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
+    @Operation(summary = "사용자 정보 조회", description = "userId에 해당하는 사용자의 기본 정보를 조회합니다.")
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUser(
+            @Parameter(description = "사용자 ID", example = "1") @PathVariable Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getUser(userId)));
     }
 
@@ -58,15 +60,18 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(userService.getUserProfile(userId)));
     }
 
+    @Operation(summary = "사용자 정보 수정", description = "userId에 해당하는 사용자의 닉네임/프로필 이미지를 수정합니다.")
     @PutMapping("/{userId}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
-            @PathVariable Long userId,
+            @Parameter(description = "사용자 ID", example = "1") @PathVariable Long userId,
             @Valid @RequestBody UserUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(userService.updateUser(userId, request)));
     }
 
+    @Operation(summary = "사용자 삭제", description = "userId에 해당하는 사용자를 삭제합니다.")
     @DeleteMapping("/{userId}")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @Parameter(description = "사용자 ID", example = "1") @PathVariable Long userId) {
         userService.deleteUser(userId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
