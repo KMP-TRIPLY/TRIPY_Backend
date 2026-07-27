@@ -4,6 +4,7 @@ import com.kmp.Triply.domain.course.dto.request.CourseCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.CourseSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.MissionCreateRequest;
 import com.kmp.Triply.domain.course.dto.response.CourseDetailResponse;
+import com.kmp.Triply.domain.course.dto.response.CourseRegionResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseSpotResponse;
 import com.kmp.Triply.domain.course.dto.response.MissionResponse;
@@ -44,6 +45,12 @@ public class CourseController {
             @RequestParam(required = false) String regionCode,
             @RequestParam(required = false) String city) {
         return ResponseEntity.ok(ApiResponse.ok(courseService.getCourses(regionCode, city)));
+    }
+
+    @Operation(summary = "코스 지역 목록 조회", description = "활성화된 코스가 있는 지역 코드 목록만 조회합니다.")
+    @GetMapping("/regions")
+    public ResponseEntity<ApiResponse<List<CourseRegionResponse>>> getCourseRegions() {
+        return ResponseEntity.ok(ApiResponse.ok(courseService.getCourseRegions()));
     }
 
     @Operation(summary = "코스 상세 조회", description = "코스에 속한 스팟과 미션(퀴즈)을 함께 조회합니다.")
