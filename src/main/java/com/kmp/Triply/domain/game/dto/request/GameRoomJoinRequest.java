@@ -11,6 +11,9 @@ public class GameRoomJoinRequest {
     @Size(max = 8)
     private String roomCode;
 
+    @NotBlank
+    private String password;
+
     private Long teamId;
 
     @Size(max = 50)

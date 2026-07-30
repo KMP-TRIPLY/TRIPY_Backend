@@ -1,10 +1,13 @@
 package com.kmp.Triply.domain.game.controller;
 
+import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
+import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamRankingResponse;
 import com.kmp.Triply.domain.game.service.GameRoomService;
@@ -61,6 +64,26 @@ public class GameRoomController {
             @Valid @RequestBody GameRoomStartRequest request) {
         Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gameRoomService.startRoom(userId, request)));
+    }
+
+    @Operation(summary = "게임방 코스 변경", description = "호스트가 대기 중인 게임방의 선택 코스를 변경합니다.")
+    @PostMapping("/game-rooms/{roomId}/course")
+    public ResponseEntity<ApiResponse<GameRoomResponse>> changeCourse(
+            Authentication authentication,
+            @Parameter(description = "게임방 ID", example = "10") @PathVariable Long roomId,
+            @Valid @RequestBody GameRoomCourseChangeRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.changeCourse(userId, roomId, request)));
+    }
+
+    @Operation(summary = "게임방 탈퇴", description = "진행 중인 게임에서 팀 멤버가 탈퇴 사유를 남기고 탈퇴합니다. 탈퇴 시점의 개인 점수는 재분배 대상으로 보존됩니다.")
+    @PostMapping("/game-rooms/{roomId}/leave")
+    public ResponseEntity<ApiResponse<TeamLeaveResponse>> leaveRoom(
+            Authentication authentication,
+            @Parameter(description = "게임방 ID", example = "10") @PathVariable Long roomId,
+            @Valid @RequestBody TeamLeaveRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.leaveRoom(userId, roomId, request)));
     }
 
     @Operation(summary = "게임 종료", description = "호스트가 진행 중인 게임방을 종료하고 팀 순위 및 최종 랭킹을 확정합니다.")
