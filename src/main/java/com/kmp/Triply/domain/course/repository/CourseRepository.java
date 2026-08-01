@@ -18,5 +18,12 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             """)
     List<Course> findActiveCourses(@Param("regionCode") String regionCode, @Param("city") String city);
 
+    @Query("""
+            select distinct course.regionCode from Course course
+            where course.isActive = true
+            order by course.regionCode asc
+            """)
+    List<String> findActiveCourseRegionCodes();
+
     boolean existsByTitle(String title);
 }

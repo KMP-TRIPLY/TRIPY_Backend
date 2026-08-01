@@ -4,6 +4,7 @@ import com.kmp.Triply.domain.course.dto.request.CourseCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.CourseSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.MissionCreateRequest;
 import com.kmp.Triply.domain.course.dto.response.CourseDetailResponse;
+import com.kmp.Triply.domain.course.dto.response.CourseRegionResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseSpotResponse;
 import com.kmp.Triply.domain.course.dto.response.MissionResponse;
@@ -15,6 +16,8 @@ public interface CourseService {
     CourseResponse createCourse(Long userId, CourseCreateRequest request);
 
     List<CourseResponse> getCourses(String regionCode, String city);
+
+    List<CourseRegionResponse> getCourseRegions();
 
     CourseDetailResponse getCourseDetail(Long courseId);
 

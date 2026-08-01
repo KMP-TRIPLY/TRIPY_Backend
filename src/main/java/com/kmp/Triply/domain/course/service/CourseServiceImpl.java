@@ -7,6 +7,7 @@ import com.kmp.Triply.domain.course.dto.request.CourseSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.MissionCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.TourismSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.response.CourseDetailResponse;
+import com.kmp.Triply.domain.course.dto.response.CourseRegionResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseResponse;
 import com.kmp.Triply.domain.course.dto.response.CourseSpotResponse;
 import com.kmp.Triply.domain.course.dto.response.MissionChoiceResponse;
@@ -71,6 +72,13 @@ public class CourseServiceImpl implements CourseService {
     public List<CourseResponse> getCourses(String regionCode, String city) {
         return courseRepository.findActiveCourses(regionCode, city).stream()
                 .map(CourseResponse::from)
+                .toList();
+    }
+
+    @Override
+    public List<CourseRegionResponse> getCourseRegions() {
+        return courseRepository.findActiveCourseRegionCodes().stream()
+                .map(CourseRegionResponse::from)
                 .toList();
     }
 
