@@ -97,4 +97,5 @@ tourism:
   api:
     key: ${TOURISM_API_KEY}
     base-url: https://apis.data.go.kr/B551011/LocgoHubTarService1
+    kor-service-base-url: https://apis.data.go.kr/B551011/KorService2
     cache-hours: 24
