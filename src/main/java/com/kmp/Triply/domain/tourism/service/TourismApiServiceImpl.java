@@ -3,6 +3,7 @@ package com.kmp.Triply.domain.tourism.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kmp.Triply.domain.tourism.dto.response.NearbyTourismSpotResponse;
 import com.kmp.Triply.domain.tourism.dto.response.RecommendationResponse;
 import com.kmp.Triply.global.common.PageResponse;
 import com.kmp.Triply.domain.tourism.entity.ApiType;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
@@ -60,6 +62,9 @@ public class TourismApiServiceImpl implements TourismApiService {
 
     @Value("${tourism.api.base-url}")
     private String baseUrl;
+
+    @Value("${tourism.api.kor-service-base-url:https://apis.data.go.kr/B551011/KorService2}")
+    private String korServiceBaseUrl;
 
     @Value("${tourism.api.cache-hours:24}")
     private int cacheHours;
@@ -263,6 +268,115 @@ public class TourismApiServiceImpl implements TourismApiService {
         List<RecommendationResponse> filtered = areaCd == null ? all
                 : all.stream().filter(r -> areaCd.equals(r.getAreaCd())).toList();
         return new PageResponse<>(filtered, page, size);
+    }
+
+    @Override
+    public PageResponse<NearbyTourismSpotResponse> getNearbyTourismSpots(
+            BigDecimal mapX,
+            BigDecimal mapY,
+            int radius,
+            String contentTypeId,
+            int page,
+            int size
+    ) {
+        String rawJson = callLocationBasedList(mapX, mapY, radius, contentTypeId, page + 1, size);
+        return new PageResponse<>(parseNearbyItems(rawJson), page, size, parseTotalCount(rawJson));
+    }
+
+    private String callLocationBasedList(BigDecimal mapX, BigDecimal mapY, int radius,
+                                         String contentTypeId, int pageNo, int numOfRows) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(korServiceBaseUrl + "/locationBasedList2")
+                .queryParam("serviceKey", apiKey)
+                .queryParam("numOfRows", numOfRows)
+                .queryParam("pageNo", pageNo)
+                .queryParam("MobileOS", "ETC")
+                .queryParam("MobileApp", "Triply")
+                .queryParam("_type", "json")
+                .queryParam("arrange", "E")
+                .queryParam("mapX", mapX)
+                .queryParam("mapY", mapY)
+                .queryParam("radius", radius);
+
+        if (StringUtils.hasText(contentTypeId)) {
+            builder.queryParam("contentTypeId", contentTypeId);
+        }
+
+        try {
+            String response = restClient.get().uri(builder.build(true).toUriString()).retrieve().body(String.class);
+            if (response == null) throw new CustomException(ErrorCode.TOURISM_API_ERROR);
+            return response;
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("위치 기반 관광공사 API 호출 실패. mapX={}, mapY={}, radius={}", mapX, mapY, radius, e);
+            throw new CustomException(ErrorCode.TOURISM_API_ERROR);
+        }
+    }
+
+    private List<NearbyTourismSpotResponse> parseNearbyItems(String rawJson) {
+        List<NearbyTourismSpotResponse> result = new ArrayList<>();
+        try {
+            JsonNode items = objectMapper.readTree(rawJson)
+                    .path("response").path("body").path("items").path("item");
+
+            if (items.isMissingNode() || items.isNull()) {
+                return result;
+            }
+
+            if (items.isArray()) {
+                for (JsonNode item : items) {
+                    result.add(toNearbyTourismSpotResponse(item));
+                }
+                return result;
+            }
+
+            result.add(toNearbyTourismSpotResponse(items));
+        } catch (JsonProcessingException e) {
+            log.error("위치 기반 관광 API 응답 JSON 파싱 실패", e);
+        }
+        return result;
+    }
+
+    private int parseTotalCount(String rawJson) {
+        try {
+            return objectMapper.readTree(rawJson)
+                    .path("response").path("body").path("totalCount")
+                    .asInt(0);
+        } catch (JsonProcessingException e) {
+            log.warn("위치 기반 관광 API totalCount 파싱 실패");
+            return 0;
+        }
+    }
+
+    private NearbyTourismSpotResponse toNearbyTourismSpotResponse(JsonNode item) {
+        return NearbyTourismSpotResponse.builder()
+                .contentId(item.path("contentid").asText(""))
+                .contentTypeId(item.path("contenttypeid").asText(""))
+                .title(item.path("title").asText(""))
+                .address(item.path("addr1").asText(""))
+                .addressDetail(item.path("addr2").asText(""))
+                .firstImage(item.path("firstimage").asText(""))
+                .firstImageSmall(item.path("firstimage2").asText(""))
+                .mapX(item.path("mapx").asText(""))
+                .mapY(item.path("mapy").asText(""))
+                .distanceMeters(parseDistanceMeters(item.path("dist").asText()))
+                .areaCode(item.path("areacode").asText(""))
+                .sigunguCode(item.path("sigungucode").asText(""))
+                .category1(item.path("cat1").asText(""))
+                .category2(item.path("cat2").asText(""))
+                .category3(item.path("cat3").asText(""))
+                .build();
+    }
+
+    private int parseDistanceMeters(String value) {
+        try {
+            if (!StringUtils.hasText(value)) {
+                return 0;
+            }
+            return new BigDecimal(value).intValue();
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     private String resolveAreaCd(String region) {

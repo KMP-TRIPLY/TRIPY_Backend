@@ -23,4 +23,12 @@ public class PageResponse<T> {
         int to = Math.min(from + size, allItems.size());
         this.content = allItems.subList(from, to);
     }
+
+    public PageResponse(List<T> content, int page, int size, long totalElements) {
+        this.content = content;
+        this.page = page;
+        this.size = size;
+        this.totalElements = totalElements;
+        this.totalPages = size == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
+    }
 }

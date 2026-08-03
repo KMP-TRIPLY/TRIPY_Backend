@@ -30,6 +30,7 @@ jwt:
 tourism:
   api:
     key: your_tourism_api_key
+    kor-service-base-url: https://apis.data.go.kr/B551011/KorService2
 
 # 백제 역사 코스(스토리 A/B/C) 시드 데이터를 최초 1회 등록하려면 true로 설정 후 서버를 한 번 기동하세요.
 # 이미 등록된 코스가 있으면 자동으로 건너뜁니다.
