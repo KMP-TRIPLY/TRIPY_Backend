@@ -30,3 +30,7 @@ jwt:
 tourism:
   api:
     key: your_tourism_api_key
+
+app:
+  seed:
+    enabled: true
