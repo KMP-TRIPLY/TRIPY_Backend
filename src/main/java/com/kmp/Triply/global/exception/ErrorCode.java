@@ -48,6 +48,15 @@ public enum ErrorCode {
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
     INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
 
+    // Game Play (미션 대결)
+    GAME_NOT_RUNNING(HttpStatus.BAD_REQUEST, "게임이 진행 중이 아닙니다."),
+    NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "해당 팀의 멤버가 아닙니다."),
+    MISSION_NOT_FOUND(HttpStatus.NOT_FOUND, "미션을 찾을 수 없습니다."),
+    SPOT_LOCKED(HttpStatus.BAD_REQUEST, "아직 도착할 수 없는 스팟입니다. 이전 스팟을 먼저 완료하세요."),
+    SPOT_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "스팟에 먼저 도착(인증)해야 합니다."),
+    OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "스팟 반경 밖입니다. 더 가까이 이동하세요."),
+    MISSION_ALREADY_SOLVED(HttpStatus.CONFLICT, "이미 해결한 미션입니다."),
+
     // Reward
     COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),
     COUPON_NOT_ISSUABLE(HttpStatus.BAD_REQUEST, "발급할 수 없는 쿠폰입니다."),
