@@ -222,11 +222,16 @@ public class GamePlayServiceImpl implements GamePlayService {
         validateMissionInCourse(mission, room.getCourse().getId());
 
         CourseSpot spot = mission.getCourseSpot();
-        GameProgress progress = getActiveProgress(team.getId(), spot.getId());
+        GameProgress progress = gameProgressRepository.findByTeamIdAndCourseSpotId(team.getId(), spot.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.SPOT_NOT_ACTIVE));
 
+        // 이미 정답 처리된 미션은 스팟 완료 여부와 무관하게 중복 제출을 차단한다(일관된 409).
         if (missionAttemptRepository.existsByGameProgressIdAndMissionIdAndResult(
                 progress.getId(), missionId, AttemptResult.CORRECT)) {
             throw new CustomException(ErrorCode.MISSION_ALREADY_SOLVED);
+        }
+        if (progress.getStatus() != ProgressStatus.ACTIVE) {
+            throw new CustomException(ErrorCode.SPOT_NOT_ACTIVE);
         }
 
         boolean hintUsed = missionAttemptRepository.existsByGameProgressIdAndMissionIdAndAttemptType(
