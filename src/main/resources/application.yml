@@ -39,7 +39,7 @@ spring:
           kakao:
             client-id: ${KAKAO_CLIENT_ID}
             client-secret: ${KAKAO_CLIENT_SECRET}
-            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/kakao"
+            redirect-uri: http://161.33.35.133:8080/login/oauth2/code/kakao
             authorization-grant-type: authorization_code
             scope:
               - profile_nickname
@@ -50,7 +50,7 @@ spring:
           naver:
             client-id: ${NAVER_CLIENT_ID}
             client-secret: ${NAVER_CLIENT_SECRET}
-            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/naver"
+            redirect-uri: http://161.33.35.133:8080/login/oauth2/code/naver
             authorization-grant-type: authorization_code
             scope:
               - name
