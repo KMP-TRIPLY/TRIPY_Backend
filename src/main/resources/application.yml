@@ -18,11 +18,13 @@ spring:
   # ===== JPA =====
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      # 운영 서버에서는 JPA_DDL_AUTO=validate (엔티티 변경이 운영 스키마를 건드리지 않게)
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    # 기본 off. 로컬에서 보고 싶으면 .env 에 JPA_SHOW_SQL=true
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${JPA_SHOW_SQL:false}
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # ===== Redis =====
@@ -39,7 +41,7 @@ spring:
           kakao:
             client-id: ${KAKAO_CLIENT_ID}
             client-secret: ${KAKAO_CLIENT_SECRET}
-            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/kakao"
+            redirect-uri: "${OAUTH_REDIRECT_BASE:https://tripy-backend-u9ty.onrender.com}/login/oauth2/code/kakao"
             authorization-grant-type: authorization_code
             scope:
               - profile_nickname
@@ -50,7 +52,7 @@ spring:
           naver:
             client-id: ${NAVER_CLIENT_ID}
             client-secret: ${NAVER_CLIENT_SECRET}
-            redirect-uri: "https://tripy-backend-u9ty.onrender.com/login/oauth2/code/naver"
+            redirect-uri: "${OAUTH_REDIRECT_BASE:https://tripy-backend-u9ty.onrender.com}/login/oauth2/code/naver"
             authorization-grant-type: authorization_code
             scope:
               - name
