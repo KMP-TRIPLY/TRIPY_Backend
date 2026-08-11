@@ -9,6 +9,7 @@ import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -56,6 +57,30 @@ public class JwtProvider {
 
     public long getRefreshTokenExpiry() {
         return refreshTokenExpiry;
+    }
+
+    /** 만료돼서 못 쓰는 토큰인지. 서명 위조 등 다른 사유면 false. */
+    public boolean isExpired(String token) {
+        try {
+            parseClaims(token);
+            return false;
+        } catch (ExpiredJwtException e) {
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** 만료까지 남은 밀리초. 이미 만료됐으면 0. 블랙리스트 TTL 로 쓴다. */
+    public long getRemainingMillis(String token) {
+        return Math.max(0, parseClaims(token).getExpiration().getTime() - System.currentTimeMillis());
+    }
+
+    /** "Bearer xxx" 헤더에서 토큰만 꺼낸다. 형식이 아니면 null. */
+    public static String resolveBearer(String header) {
+        return StringUtils.hasText(header) && header.startsWith("Bearer ")
+                ? header.substring(7)
+                : null;
     }
 
     private String buildToken(Long userId, long expiry) {

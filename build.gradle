@@ -43,5 +43,10 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		// CI 러너엔 DB/Redis 가 없어서 컨텍스트 뜨는 테스트는 제외한다
+		if (System.getenv('CI')) {
+			excludeTags 'integration'
+		}
+	}
 }

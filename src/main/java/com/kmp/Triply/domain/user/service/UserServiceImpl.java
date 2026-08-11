@@ -4,7 +4,7 @@ import com.kmp.Triply.domain.user.dto.request.UserUpdateRequest;
 import com.kmp.Triply.domain.user.dto.response.UserProfileResponse;
 import com.kmp.Triply.domain.user.dto.response.UserResponse;
 import com.kmp.Triply.domain.user.entity.User;
-import com.kmp.Triply.domain.user.repository.RefreshTokenRepository;
+import com.kmp.Triply.global.security.jwt.RefreshTokenStore;
 import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenStore refreshTokenStore;
 
     @Override
     public UserResponse getUser(Long userId) {
@@ -57,6 +57,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         user.softDelete();
-        refreshTokenRepository.deleteByUserId(userId);
+        refreshTokenStore.delete(userId);
     }
 }
