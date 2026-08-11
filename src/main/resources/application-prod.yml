@@ -1,0 +1,23 @@
+# 운영 전용 설정. 비밀값은 여기 두지 않는다 (서버의 .env / ~/config/ 담당).
+# 서버 ~/config/ 의 같은 이름 파일이 이 값을 덮어쓴다(additional-location 우선).
+
+logging:
+  file:
+    # WorkingDirectory(/home/ubuntu) 기준 상대경로 → /home/ubuntu/logs/app.log
+    name: logs/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 7
+      total-size-cap: 200MB   # 1GB 서버라 상한을 못 박아둔다
+  level:
+    root: INFO
+    # 인터넷 스캔봇이 /ws 를 찔러대며 남기는 WARN 소음 차단
+    org.springframework.web.socket.sockjs: ERROR
+
+spring:
+  jpa:
+    hibernate:
+      # 엔티티 변경이 운영 스키마를 자동으로 건드리지 않게 한다.
+      # users 의 유니크 제약은 부분 인덱스라 수동 DDL 로 관리 중 (User 엔티티 주석 참고)
+      ddl-auto: validate
