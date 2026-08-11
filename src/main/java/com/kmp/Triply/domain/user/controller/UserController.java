@@ -5,11 +5,13 @@ import com.kmp.Triply.domain.user.dto.response.UserProfileResponse;
 import com.kmp.Triply.domain.user.dto.response.UserResponse;
 import com.kmp.Triply.domain.user.service.UserService;
 import com.kmp.Triply.global.common.ApiResponse;
+import com.kmp.Triply.global.security.jwt.JwtProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -40,9 +42,11 @@ public class UserController {
 
     @Operation(summary = "회원 탈퇴", description = "현재 로그인한 사용자를 탈퇴 처리합니다.")
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> withdraw(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Void>> withdraw(
+            Authentication authentication,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String bearer) {
         Long userId = (Long) authentication.getPrincipal();
-        userService.withdraw(userId);
+        userService.withdraw(userId, JwtProvider.resolveBearer(bearer));
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 

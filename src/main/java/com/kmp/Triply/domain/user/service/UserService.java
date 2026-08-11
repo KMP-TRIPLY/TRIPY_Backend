@@ -14,5 +14,5 @@ public interface UserService {
 
     void deleteUser(Long userId);
 
-    void withdraw(Long userId);
+    void withdraw(Long userId, String accessToken);
 }
