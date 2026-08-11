@@ -13,6 +13,13 @@ import java.util.List;
 @Configuration
 public class WebConfig {
 
+    /** CORS 와 WebSocket 핸드셰이크가 같은 목록을 쓴다. */
+    public static final List<String> ALLOWED_ORIGINS = List.of(
+            "https://triply-six.vercel.app",
+            "https://triply-six-*.vercel.app", // 우리 프로젝트 프리뷰 배포만
+            "http://localhost:*"               // 로컬 개발 환경
+    );
+
     @Bean
     public RestClient restClient() {
         return RestClient.create();
@@ -20,17 +27,14 @@ public class WebConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        // 클래스패스의 모듈(jsr310 등) 등록. 안 하면 LocalDateTime 이 배열로 직렬화된다.
+        return new ObjectMapper().findAndRegisterModules();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of(
-                "https://triply-six.vercel.app",
-                "https://*.vercel.app",   // Vercel 프리뷰 배포 허용
-                "http://localhost:*"      // 로컬 개발 환경
-        ));
+        config.setAllowedOriginPatterns(ALLOWED_ORIGINS);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

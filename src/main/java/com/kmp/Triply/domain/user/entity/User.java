@@ -8,14 +8,16 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
+/**
+ * 유니크 제약은 "탈퇴하지 않은 계정끼리만" 이어야 해서 부분 인덱스로 관리한다.
+ * JPA 로는 표현이 안 되므로 아래 DDL 을 DB 에 직접 적용한다.
+ * <pre>
+ * CREATE UNIQUE INDEX idx_users_email  ON users (email)                      WHERE deleted_at IS NULL;
+ * CREATE UNIQUE INDEX idx_users_social ON users (social_provider, social_id) WHERE deleted_at IS NULL;
+ * </pre>
+ */
 @Entity
-@Table(
-    name = "users",
-    indexes = {
-        @Index(name = "idx_users_email", columnList = "email", unique = true),
-        @Index(name = "idx_users_social_id", columnList = "social_id", unique = true)
-    }
-)
+@Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -25,7 +27,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, length = 255)
     private String email;
 
     @Column(nullable = false, length = 50)
@@ -38,7 +40,7 @@ public class User {
     @Column(name = "social_provider", nullable = false, length = 20)
     private SocialProvider socialProvider;
 
-    @Column(name = "social_id", nullable = false, unique = true, length = 255)
+    @Column(name = "social_id", nullable = false, length = 255)
     private String socialId;
 
     @Column(nullable = false)

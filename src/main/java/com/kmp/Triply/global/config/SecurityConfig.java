@@ -2,6 +2,7 @@ package com.kmp.Triply.global.config;
 
 import com.kmp.Triply.global.security.jwt.JwtAuthenticationFilter;
 import com.kmp.Triply.global.security.jwt.JwtProvider;
+import com.kmp.Triply.global.security.jwt.TokenBlacklist;
 import com.kmp.Triply.global.security.oauth2.CustomOAuth2UserService;
 import com.kmp.Triply.global.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationFailureHandler;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final CorsConfigurationSource corsConfigurationSource;
     private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+    private final TokenBlacklist tokenBlacklist;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -40,7 +42,8 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/api/auth/**",
+                    // logout 은 인증 필요 (permitAll 이면 authentication 이 null 이라 500 난다)
+                    "/api/auth/refresh",
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/ws/**",
@@ -57,7 +60,7 @@ public class SecurityConfig {
                 .successHandler(successHandler)
                 .failureHandler(failureHandler))
             .addFilterBefore(
-                new JwtAuthenticationFilter(jwtProvider),
+                new JwtAuthenticationFilter(jwtProvider, tokenBlacklist),
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

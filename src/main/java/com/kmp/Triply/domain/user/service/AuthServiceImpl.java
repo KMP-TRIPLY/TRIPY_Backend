@@ -1,65 +1,59 @@
 package com.kmp.Triply.domain.user.service;
 
 import com.kmp.Triply.domain.user.dto.response.TokenResponse;
-import com.kmp.Triply.domain.user.entity.RefreshToken;
 import com.kmp.Triply.domain.user.entity.User;
-import com.kmp.Triply.domain.user.repository.RefreshTokenRepository;
-import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import com.kmp.Triply.global.security.jwt.JwtProvider;
+import com.kmp.Triply.global.security.jwt.RefreshTokenStore;
+import com.kmp.Triply.global.security.jwt.TokenBlacklist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
     private final JwtProvider jwtProvider;
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
+    private final RefreshTokenStore refreshTokenStore;
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
-    @Transactional
     public TokenResponse issueTokens(User user) {
         String accessToken = jwtProvider.generateAccessToken(user.getId());
-        String refreshTokenValue = jwtProvider.generateRefreshToken(user.getId());
-        long expiresIn = jwtProvider.getRefreshTokenExpiry() / 1000;
+        String refreshToken = jwtProvider.generateRefreshToken(user.getId());
 
-        refreshTokenRepository.deleteByUserId(user.getId());
-        refreshTokenRepository.save(RefreshToken.builder()
-                .user(user)
-                .token(refreshTokenValue)
-                .expiresAt(LocalDateTime.now().plusSeconds(expiresIn))
-                .build());
+        refreshTokenStore.save(user.getId(), refreshToken,
+                Duration.ofMillis(jwtProvider.getRefreshTokenExpiry()));
 
-        return TokenResponse.of(accessToken, refreshTokenValue, jwtProvider.getRefreshTokenExpiry() / 1000);
+        return TokenResponse.of(accessToken, refreshToken, jwtProvider.getRefreshTokenExpiry() / 1000);
     }
 
     @Override
-    @Transactional
     public TokenResponse refresh(String refreshToken) {
-        RefreshToken savedToken = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_REFRESH_TOKEN));
-
-        if (savedToken.isExpired()) {
-            refreshTokenRepository.delete(savedToken);
-            throw new CustomException(ErrorCode.EXPIRED_REFRESH_TOKEN);
+        if (!jwtProvider.validate(refreshToken)) {
+            throw new CustomException(jwtProvider.isExpired(refreshToken)
+                    ? ErrorCode.EXPIRED_REFRESH_TOKEN
+                    : ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        User user = savedToken.getUser();
-        String newAccessToken = jwtProvider.generateAccessToken(user.getId());
+        Long userId = jwtProvider.getUserId(refreshToken);
 
-        return TokenResponse.of(newAccessToken, refreshToken, jwtProvider.getRefreshTokenExpiry() / 1000);
+        // 로그아웃했거나, 다른 기기에서 재로그인해 교체된 토큰
+        if (!refreshTokenStore.matches(userId, refreshToken)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        return TokenResponse.of(jwtProvider.generateAccessToken(userId), refreshToken,
+                jwtProvider.getRefreshTokenExpiry() / 1000);
     }
 
     @Override
-    @Transactional
-    public void logout(Long userId) {
-        refreshTokenRepository.deleteByUserId(userId);
+    public void logout(Long userId, String accessToken) {
+        refreshTokenStore.delete(userId);
+        // 액세스 토큰은 만료 전까지 그대로 유효하므로 블랙리스트에 넣어야 실제로 끊긴다
+        tokenBlacklist.add(accessToken);
     }
 }
