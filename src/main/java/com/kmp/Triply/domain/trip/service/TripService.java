@@ -11,7 +11,7 @@ public interface TripService {
 
     List<TripResponse> getMyTrips(Long userId);
 
-    TripResponse getTrip(Long tripId);
+    TripResponse getTrip(Long userId, Long tripId);
 
     TripResponse updateTrip(Long userId, Long tripId, TripCreateRequest request);
 

@@ -48,22 +48,14 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
-    public TripResponse getTrip(Long tripId) {
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new CustomException(ErrorCode.TRIP_NOT_FOUND));
-        return TripResponse.from(trip);
+    public TripResponse getTrip(Long userId, Long tripId) {
+        return TripResponse.from(findOwnedTrip(userId, tripId));
     }
 
     @Override
     @Transactional
     public TripResponse updateTrip(Long userId, Long tripId, TripCreateRequest request) {
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new CustomException(ErrorCode.TRIP_NOT_FOUND));
-
-        if (!trip.getUser().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.TRIP_ACCESS_DENIED);
-        }
-
+        Trip trip = findOwnedTrip(userId, tripId);
         trip.update(request.getTitle(), request.getDescription(), request.getStartDate(), request.getEndDate());
         return TripResponse.from(trip);
     }
@@ -71,13 +63,17 @@ public class TripServiceImpl implements TripService {
     @Override
     @Transactional
     public void deleteTrip(Long userId, Long tripId) {
+        tripRepository.delete(findOwnedTrip(userId, tripId));
+    }
+
+    /** 조회·수정·삭제가 모두 거쳐야 하는 소유권 검사. 한 군데로 모아야 빠뜨리지 않는다. */
+    private Trip findOwnedTrip(Long userId, Long tripId) {
         Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new CustomException(ErrorCode.TRIP_NOT_FOUND));
 
         if (!trip.getUser().getId().equals(userId)) {
             throw new CustomException(ErrorCode.TRIP_ACCESS_DENIED);
         }
-
-        tripRepository.delete(trip);
+        return trip;
     }
 }
