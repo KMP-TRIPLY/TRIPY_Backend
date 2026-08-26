@@ -24,7 +24,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # TriplyApplicationTests 는 local 프로필 + 실제 DB 가 필요해서 CI 에서 제외
-      - run: ./gradlew test --tests 'com.kmp.Triply.domain.*'
+      - run: ./gradlew test --tests 'com.kmp.Triply.domain.*' --tests 'com.kmp.Triply.global.*'
       - run: ./gradlew bootJar
 
       - name: Deploy to OCI
