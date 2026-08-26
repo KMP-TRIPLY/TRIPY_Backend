@@ -9,6 +9,7 @@ import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,7 +17,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -49,6 +52,11 @@ public class SecurityConfig {
                     "/v3/api-docs/**"
                 ).permitAll()
                 .anyRequest().authenticated())
+            // /api/** 는 브라우저가 아닌 클라이언트가 부르므로 302 /login 대신 401 을 준다.
+            // 리다이렉트로 응답하면 클라이언트는 인증 실패를 성공으로 착각한다.
+            .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                PathPatternRequestMatcher.withDefaults().matcher("/api/**")))
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(endpoint -> endpoint
                     .authorizationRequestRepository(authorizationRequestRepository))

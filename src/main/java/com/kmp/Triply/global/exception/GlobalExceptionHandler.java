@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -70,8 +72,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("요청 본문을 읽을 수 없습니다."));
     }
 
+    /** 매핑된 핸들러가 없는 경로. 캐치올로 새면 단순 오타 URL 이 500 으로 보고된다. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException e) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail("요청한 경로를 찾을 수 없습니다."));
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+    public ResponseEntity<ApiResponse<Void>> handleException(HttpServletRequest request, Exception e) {
+        // 로그가 없으면 500 을 받아도 원인을 찾을 수 없다.
+        log.error("처리되지 않은 예외: {} {}", request.getMethod(), request.getRequestURI(), e);
         return ResponseEntity
                 .internalServerError()
                 .body(ApiResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));

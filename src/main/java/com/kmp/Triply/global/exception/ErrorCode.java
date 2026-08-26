@@ -33,6 +33,7 @@ public enum ErrorCode {
 
     // Tourism API
     TOURISM_API_ERROR(HttpStatus.BAD_GATEWAY, "한국관광공사 API 호출에 실패했습니다."),
+    INVALID_COORDINATE(HttpStatus.BAD_REQUEST, "좌표가 대한민국 범위를 벗어났습니다."),
 
     // Course
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "코스를 찾을 수 없습니다."),

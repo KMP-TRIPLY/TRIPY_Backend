@@ -89,6 +89,8 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${APP_OAUTH2_REDIRECT_URI:https://triply-six.vercel.app/oauth2/callback}
+    # 로그인 시작 시 ?redirect_uri= 로 고를 수 있는 콜백 목록 (완전 일치). 위 기본값도 포함해야 한다.
+    allowed-redirect-uris: ${APP_OAUTH2_ALLOWED_REDIRECT_URIS:https://triply-six.vercel.app/oauth2/callback,https://triply-qa.onrender.com,https://triply-qa.onrender.com/oauth2/callback}
   seed:
     enabled: ${APP_SEED_ENABLED:false}
 
