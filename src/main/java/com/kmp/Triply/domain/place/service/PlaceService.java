@@ -7,11 +7,11 @@ import java.util.List;
 
 public interface PlaceService {
 
-    PlaceResponse addPlace(Long tripId, PlaceCreateRequest request);
+    PlaceResponse addPlace(Long userId, Long tripId, PlaceCreateRequest request);
 
-    List<PlaceResponse> getPlaces(Long tripId);
+    List<PlaceResponse> getPlaces(Long userId, Long tripId);
 
-    PlaceResponse updatePlace(Long placeId, PlaceCreateRequest request);
+    PlaceResponse updatePlace(Long userId, Long tripId, Long placeId, PlaceCreateRequest request);
 
-    void deletePlace(Long placeId);
+    void deletePlace(Long userId, Long tripId, Long placeId);
 }

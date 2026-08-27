@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,37 +24,45 @@ public class PlaceController {
 
     private final PlaceService placeService;
 
-    @Operation(summary = "여행 장소 추가", description = "지정한 여행 일정에 방문 장소를 추가합니다.")
+    @Operation(summary = "여행 장소 추가", description = "본인의 여행 일정에 방문 장소를 추가합니다.")
     @PostMapping
     public ResponseEntity<ApiResponse<PlaceResponse>> addPlace(
+            Authentication authentication,
             @Parameter(description = "여행 일정 ID", example = "1") @PathVariable Long tripId,
             @Valid @RequestBody PlaceCreateRequest request) {
+        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(placeService.addPlace(tripId, request)));
+                .body(ApiResponse.ok(placeService.addPlace(userId, tripId, request)));
     }
 
-    @Operation(summary = "여행 장소 목록 조회", description = "지정한 여행 일정에 저장된 방문 장소 목록을 조회합니다.")
+    @Operation(summary = "여행 장소 목록 조회", description = "본인의 여행 일정에 저장된 방문 장소 목록을 조회합니다.")
     @GetMapping
     public ResponseEntity<ApiResponse<List<PlaceResponse>>> getPlaces(
+            Authentication authentication,
             @Parameter(description = "여행 일정 ID", example = "1") @PathVariable Long tripId) {
-        return ResponseEntity.ok(ApiResponse.ok(placeService.getPlaces(tripId)));
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(placeService.getPlaces(userId, tripId)));
     }
 
-    @Operation(summary = "여행 장소 수정", description = "지정한 여행 일정의 방문 장소 정보를 수정합니다.")
+    @Operation(summary = "여행 장소 수정", description = "본인의 여행 일정에 있는 방문 장소 정보를 수정합니다.")
     @PutMapping("/{placeId}")
     public ResponseEntity<ApiResponse<PlaceResponse>> updatePlace(
+            Authentication authentication,
             @Parameter(description = "여행 일정 ID", example = "1") @PathVariable Long tripId,
             @Parameter(description = "방문 장소 ID", example = "10") @PathVariable Long placeId,
             @Valid @RequestBody PlaceCreateRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(placeService.updatePlace(placeId, request)));
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(placeService.updatePlace(userId, tripId, placeId, request)));
     }
 
-    @Operation(summary = "여행 장소 삭제", description = "지정한 여행 일정에서 방문 장소를 삭제합니다.")
+    @Operation(summary = "여행 장소 삭제", description = "본인의 여행 일정에서 방문 장소를 삭제합니다.")
     @DeleteMapping("/{placeId}")
     public ResponseEntity<ApiResponse<Void>> deletePlace(
+            Authentication authentication,
             @Parameter(description = "여행 일정 ID", example = "1") @PathVariable Long tripId,
             @Parameter(description = "방문 장소 ID", example = "10") @PathVariable Long placeId) {
-        placeService.deletePlace(placeId);
+        Long userId = (Long) authentication.getPrincipal();
+        placeService.deletePlace(userId, tripId, placeId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }
