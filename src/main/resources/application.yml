@@ -19,10 +19,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    # 운영에서 켜두면 모든 쿼리가 stdout 으로 나가 기동·응답이 느려진다. 필요할 때만 켠다.
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${SPRING_JPA_SHOW_SQL:false}
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # ===== Redis =====
