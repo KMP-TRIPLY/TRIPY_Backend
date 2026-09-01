@@ -7,6 +7,13 @@ on:
     branches: [develop, main]
   workflow_dispatch:
 
+# 연달아 push 해도 배포는 한 번에 하나만 (jar 교체 도중 겹치면 꼬임)
+concurrency:
+  group: deploy-oci
+
+permissions:
+  contents: read
+
 env:
   # 서버 환경에 맞게 이 두 줄만 수정
   JAR_PATH: /home/ubuntu/app.jar
@@ -23,8 +30,8 @@ jobs:
           distribution: temurin
       - uses: gradle/actions/setup-gradle@v4
 
-      # TriplyApplicationTests 는 local 프로필 + 실제 DB 가 필요해서 CI 에서 제외
-      - run: ./gradlew test --tests 'com.kmp.Triply.domain.*'
+      # @Tag("integration") 붙은 테스트는 build.gradle 에서 CI 일 때 자동 제외됨
+      - run: ./gradlew test
       - run: ./gradlew bootJar
 
       - name: Deploy to OCI
@@ -32,18 +39,17 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.OCI_SSH_KEY }}
           HOST: ${{ secrets.OCI_HOST }}
-          USER: ${{ secrets.OCI_USER }}
+          SSH_USER: ${{ secrets.OCI_USER }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/id build/libs/Triply-*.jar "$USER@$HOST:$JAR_PATH.new"
-          # 실패하면 이전 jar 로 되돌리고 종료 (배포 실패 = 서버 멈춤 방지)
-          ssh -i ~/.ssh/id "$USER@$HOST" "
+          scp -i ~/.ssh/id build/libs/Triply-*.jar "$SSH_USER@$HOST:$JAR_PATH.new"
+          # 60초 안에 8080 이 안 뜨면 이전 jar 로 롤백
+          ssh -i ~/.ssh/id "$SSH_USER@$HOST" "
             cp $JAR_PATH $JAR_PATH.bak &&
             mv $JAR_PATH.new $JAR_PATH &&
             sudo systemctl restart $SERVICE &&
-            sleep 20 &&
-            systemctl is-active --quiet $SERVICE ||
+            timeout 60 bash -c 'until curl -s -o /dev/null http://localhost:8080/; do sleep 2; done' ||
             { mv $JAR_PATH.bak $JAR_PATH; sudo systemctl restart $SERVICE; echo 'deploy failed, rolled back'; exit 1; }
           "
