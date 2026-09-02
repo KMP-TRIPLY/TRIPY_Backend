@@ -17,7 +17,10 @@ public class CourseCreateRequest {
 
     private String description;
 
-    @NotBlank(message = "지역 코드는 필수입니다.")
+    /**
+     * 국가행정표준 시도 코드. 비워 두면 city 로 서버가 찾는다.
+     * 클라이언트가 코드를 모르는 것이 정상이므로 필수가 아니다.
+     */
     @Size(max = 10)
     private String regionCode;
 

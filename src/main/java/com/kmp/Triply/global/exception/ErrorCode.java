@@ -38,6 +38,7 @@ public enum ErrorCode {
     // Course
     COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "코스를 찾을 수 없습니다."),
     COURSE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인이 만든 코스만 삭제할 수 있습니다."),
+    REGION_NOT_RESOLVED(HttpStatus.BAD_REQUEST, "도시 이름으로 지역을 찾을 수 없습니다. regionCode 를 직접 지정해 주세요."),
     COURSE_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "코스 스팟을 찾을 수 없습니다."),
     TOURISM_SPOT_NOT_FOUND(HttpStatus.NOT_FOUND, "관광지 정보를 찾을 수 없습니다."),
 
