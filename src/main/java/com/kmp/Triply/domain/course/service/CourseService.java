@@ -24,4 +24,6 @@ public interface CourseService {
     CourseSpotResponse addCourseSpot(Long courseId, CourseSpotCreateRequest request);
 
     MissionResponse addMission(Long courseId, Long spotId, MissionCreateRequest request);
+
+    void deleteCourse(Long userId, Long courseId);
 }
