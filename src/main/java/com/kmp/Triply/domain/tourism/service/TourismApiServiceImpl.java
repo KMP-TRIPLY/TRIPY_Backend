@@ -52,6 +52,9 @@ public class TourismApiServiceImpl implements TourismApiService {
 
     private static final int EXTERNAL_PAGE_SIZE = 100;
 
+    // 데이터랩 통계 후행 공개 대비. 이 개월 수까지 거슬러 올라가며 데이터가 있는 달을 찾는다.
+    private static final int BASE_YM_LOOKBACK_MONTHS = 4;
+
     private final TourismApiCacheRepository tourismApiCacheRepository;
     private final TourismSpotRepository tourismSpotRepository;
     private final ObjectMapper objectMapper;
@@ -88,6 +91,14 @@ public class TourismApiServiceImpl implements TourismApiService {
         }
 
         List<RecommendationResponse> items = callApiAllPages(key);
+
+        // 빈 결과는 캐싱하지 않는다. 잘못된 서비스키나 잠깐의 장애로 한 번 비어 있으면
+        // 그 빈 목록이 cache-hours(기본 24시간) 동안 굳어, 원인을 고쳐도 계속 비어 보인다.
+        if (items.isEmpty()) {
+            log.warn("관광공사 API 결과가 비어 캐시하지 않는다. signguCd={}", key.signguCd());
+            return items;
+        }
+
         String cachedJson = serializeItems(items);
 
         if (cache == null) {
@@ -106,11 +117,32 @@ public class TourismApiServiceImpl implements TourismApiService {
         return items;
     }
 
+    /**
+     * 데이터랩 통계는 후행 공개인데 후행 기간이 일정하지 않다.
+     * (2026-09-02 확인: 전월 202608 은 totalCount 0, 202607 부터 100 건)
+     * 그래서 전월을 고정하지 않고 데이터가 있는 달까지 거슬러 올라간다.
+     *
+     * <p>ponytail: 최대 {@value #BASE_YM_LOOKBACK_MONTHS} 개월까지만 본다.
+     * 후행이 더 길어지면 이 값만 올리면 된다.
+     */
     private List<RecommendationResponse> callApiAllPages(SigunguKey key) {
-        // DataLab 데이터는 약 1개월 후행 → 전월 기준으로 조회
-        LocalDate lastMonth = LocalDate.now().minusMonths(1);
-        String baseYm = String.format("%04d%02d", lastMonth.getYear(), lastMonth.getMonthValue());
+        for (int monthsAgo = 1; monthsAgo <= BASE_YM_LOOKBACK_MONTHS; monthsAgo++) {
+            String baseYm = baseYm(monthsAgo);
+            List<RecommendationResponse> items = callApiAllPages(key, baseYm);
+            if (!items.isEmpty()) {
+                return items;
+            }
+            log.info("관광공사 통계가 아직 없는 기준월. signguCd={}, baseYm={}", key.signguCd(), baseYm);
+        }
+        return new ArrayList<>();
+    }
 
+    static String baseYm(int monthsAgo) {
+        LocalDate month = LocalDate.now().minusMonths(monthsAgo);
+        return String.format("%04d%02d", month.getYear(), month.getMonthValue());
+    }
+
+    private List<RecommendationResponse> callApiAllPages(SigunguKey key, String baseYm) {
         List<RecommendationResponse> all = new ArrayList<>();
         int pageNo = 1;
         int totalCount = Integer.MAX_VALUE;
