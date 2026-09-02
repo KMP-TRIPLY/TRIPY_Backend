@@ -2,6 +2,7 @@ package com.kmp.Triply.domain.course.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kmp.Triply.domain.course.RegionCode;
 import com.kmp.Triply.domain.course.dto.request.CourseCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.CourseSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.MissionCreateRequest;
@@ -56,7 +57,7 @@ public class CourseServiceImpl implements CourseService {
         Course course = Course.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .regionCode(request.getRegionCode())
+                .regionCode(resolveRegionCode(request))
                 .city(request.getCity())
                 .difficulty(request.getDifficulty())
                 .estimatedMinutes(request.getEstimatedMinutes())
@@ -66,6 +67,22 @@ public class CourseServiceImpl implements CourseService {
                 .build();
 
         return CourseResponse.from(courseRepository.save(course));
+    }
+
+    /**
+     * 지역 코드를 정한다. 클라이언트는 시도 코드를 모르므로 보통 city 만 보내고,
+     * 서버가 도시 이름으로 찾는다. 코드를 직접 보냈으면 그대로 쓴다.
+     */
+    private String resolveRegionCode(CourseCreateRequest request) {
+        if (StringUtils.hasText(request.getRegionCode())) {
+            if (!RegionCode.exists(request.getRegionCode())) {
+                throw new CustomException(ErrorCode.REGION_NOT_RESOLVED);
+            }
+            return request.getRegionCode();
+        }
+
+        return RegionCode.resolve(request.getCity())
+                .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_RESOLVED));
     }
 
     @Override
