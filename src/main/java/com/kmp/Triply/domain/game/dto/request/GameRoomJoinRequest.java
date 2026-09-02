@@ -7,10 +7,8 @@ import lombok.Getter;
 @Getter
 public class GameRoomJoinRequest {
 
+    /** 방 코드만으로 참여한다. 비밀번호는 쓰지 않는다. */
     @NotBlank
     @Size(max = 8)
     private String roomCode;
-
-    @NotBlank
-    private String password;
 }

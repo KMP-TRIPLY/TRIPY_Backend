@@ -37,9 +37,6 @@ public class GameRoom {
     @Column(name = "room_code", nullable = false, unique = true, length = 8)
     private String roomCode;
 
-    @Column(name = "password_hash", nullable = false, length = 100)
-    private String passwordHash;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 15)
     private GameStatus status = GameStatus.WAITING;
@@ -62,11 +59,10 @@ public class GameRoom {
     private LocalDateTime createdAt;
 
     @Builder
-    private GameRoom(Course course, User host, String roomCode, String passwordHash, GameMode gameMode, short maxMembers) {
+    private GameRoom(Course course, User host, String roomCode, GameMode gameMode, short maxMembers) {
         this.course = course;
         this.host = host;
         this.roomCode = roomCode;
-        this.passwordHash = passwordHash;
         this.gameMode = gameMode;
         this.maxMembers = maxMembers;
     }

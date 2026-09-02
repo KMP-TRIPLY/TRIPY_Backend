@@ -50,7 +50,6 @@ public enum ErrorCode {
     ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
     LEFT_ROOM_CANNOT_REJOIN(HttpStatus.CONFLICT, "하차한 게임 방에는 다시 참여할 수 없습니다."),
-    INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
 
     // Game Play (미션 대결)
     GAME_NOT_RUNNING(HttpStatus.BAD_REQUEST, "게임이 진행 중이 아닙니다."),

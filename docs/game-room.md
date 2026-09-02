@@ -9,7 +9,7 @@
 ```
 GameRoom (게임방)           ← 사용자가 인식하는 단위
   host_user_id = 방장
-  room_code (6자리) + password_hash
+  room_code (6자리)
   course_id (어느 코스를 도는지)
   max_members (정원)
   status: WAITING → RUNNING → FINISHED
@@ -51,24 +51,24 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 ### ① 방 생성 — `POST /api/game-rooms`
 
 ```json
-{ "courseId": 1, "password": "1234", "roomName": "공주 원정대", "maxMembers": 6 }
+{ "courseId": 1, "roomName": "공주 원정대", "maxMembers": 6 }
 ```
 
 1. 코스 존재 확인
 2. 방 코드 생성 (중복이면 재추첨, `generateRoomCode`)
-3. 비밀번호 해시 저장
+3. 정원이 1 이면 SOLO, 그 밖은 TEAM 으로 모드 지정
 4. 생성자를 방장으로 지정, 동시에 `Team` 1행 + `TeamMember` 1행 생성 (`createTeamWithMember`)
 5. `ROOM_CREATED` 이벤트 발행
 
 ### ② 참여 — `POST /api/game-rooms/join`
 
 ```json
-{ "roomCode": "AB3D5F", "password": "1234" }
+{ "roomCode": "AB3D5F" }
 ```
 
 `joinRoom` (`GameRoomServiceImpl.java:88`) 의 분기:
 
-1. 비밀번호 불일치 → `INVALID_GAME_ROOM_PASSWORD`
+1. 방 코드로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
 2. **이미 이 방의 멤버** → `rejoinRoom()` 으로 재입장 처리 (4장 참고)
 3. 신규 참여
    - `WAITING` 상태인지 확인
@@ -184,8 +184,19 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ## 7. 배포 전 필수 작업
 
-`src/main/resources/db/migration-one-room-one-team.sql` 을 직접 실행해야 한다.
+`src/main/resources/db/` 의 SQL 을 직접 실행해야 한다.
 `ddl-auto: update` 는 컬럼을 삭제하거나 이름을 바꾸지 못한다.
+
+### migration-drop-room-password.sql — 비밀번호 제거
+
+게임방 비밀번호를 쓰지 않기로 해서 컬럼을 지운다. `password_hash` 가 `NOT NULL` 이라
+**지우기 전에 새 jar 이 뜨면 방 생성이 전부 실패한다.**
+
+```sql
+ALTER TABLE game_rooms DROP COLUMN IF EXISTS password_hash;
+```
+
+### migration-one-room-one-team.sql — 한 방 = 한 팀
 
 ```sql
 ALTER TABLE teams DROP COLUMN IF EXISTS leader_user_id;

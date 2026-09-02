@@ -14,10 +14,6 @@ public class GameRoomCreateRequest {
     private Long courseId;
 
     @NotBlank
-    @Size(min = 4, max = 20)
-    private String password;
-
-    @NotBlank
     @Size(max = 50)
     private String roomName;
 

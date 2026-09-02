@@ -31,7 +31,6 @@ import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,7 +57,6 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
-    private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
@@ -72,7 +70,6 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .course(course)
                 .host(host)
                 .roomCode(generateRoomCode())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
                 // 정원이 1 이면 혼자 하는 방이다. 모드를 따로 받지 않고 정원에서 유도한다 —
                 // 둘이 어긋나면(정원 1 인데 TEAM) 어느 쪽이 맞는지 알 수 없다.
                 .gameMode(request.getMaxMembers() == 1 ? GameMode.SOLO : GameMode.TEAM)
@@ -92,7 +89,6 @@ public class GameRoomServiceImpl implements GameRoomService {
         GameRoom gameRoom = gameRoomRepository.findByRoomCode(normalizeRoomCode(request.getRoomCode()))
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
 
-        validatePassword(gameRoom, request.getPassword());
 
         // 이미 이 방의 멤버라면 새로 넣지 않고 원래 팀으로 돌려보낸다.
         // 앱을 껐다 켜거나 네트워크가 끊겨 다시 들어오는 경우가 정상 흐름이므로 실패로 처리하면 안 된다.
@@ -316,12 +312,6 @@ public class GameRoomServiceImpl implements GameRoomService {
     private void validateWaitingRoom(GameRoom gameRoom) {
         if (gameRoom.getStatus() != GameStatus.WAITING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
-        }
-    }
-
-    private void validatePassword(GameRoom gameRoom, String password) {
-        if (!passwordEncoder.matches(password, gameRoom.getPasswordHash())) {
-            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_PASSWORD);
         }
     }
 
