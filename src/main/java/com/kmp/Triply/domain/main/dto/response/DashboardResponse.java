@@ -39,5 +39,7 @@ public class DashboardResponse {
         private String signguNm;
         private String categoryMiddle;
         private int rank;
+        /** 사진이 없을 수 있다(관광정보에서 이름이 일치하는 곳을 못 찾은 경우). null 이면 플레이스홀더. */
+        private String imageUrl;
     }
 }

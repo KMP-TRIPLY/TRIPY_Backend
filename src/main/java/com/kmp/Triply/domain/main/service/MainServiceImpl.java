@@ -63,11 +63,25 @@ public class MainServiceImpl implements MainService {
 
     private List<DashboardResponse.SpotPreview> fetchSpotPreviews() {
         try {
-            return pickPreviews(tourismApiService.getChungcheongRecommendations());
+            // 사진은 고른 세 곳만 찾는다. 전체(10 시군구 × 100 곳)를 찾으면 API 일일 한도를 넘긴다.
+            return pickTopSpots(tourismApiService.getChungcheongRecommendations()).stream()
+                    .map(this::toPreview)
+                    .toList();
         } catch (Exception e) {
             log.warn("대시보드 추천 명소 조회 실패, 빈 목록으로 대체", e);
             return Collections.emptyList();
         }
+    }
+
+    private DashboardResponse.SpotPreview toPreview(RecommendationResponse spot) {
+        return DashboardResponse.SpotPreview.builder()
+                .contentId(spot.getContentId())
+                .title(spot.getTitle())
+                .signguNm(spot.getSignguNm())
+                .categoryMiddle(spot.getCategoryMiddle())
+                .rank(spot.getRank())
+                .imageUrl(tourismApiService.findThumbnailUrl(spot.getContentId()).orElse(null))
+                .build();
     }
 
     /**
@@ -77,28 +91,22 @@ public class MainServiceImpl implements MainService {
      * <p>hubRank 는 시군구 안에서의 순위라 1 위가 시군구마다 하나씩 있다.
      * 그래서 시군구가 겹치지 않게 골라야 한 도시 명소만 세 개 나오지 않는다.
      */
-    static List<DashboardResponse.SpotPreview> pickPreviews(List<RecommendationResponse> spots) {
+    static List<RecommendationResponse> pickTopSpots(List<RecommendationResponse> spots) {
         List<RecommendationResponse> byPopularity = new ArrayList<>(spots);
         byPopularity.sort(Comparator.comparingInt(MainServiceImpl::popularity));
 
-        List<DashboardResponse.SpotPreview> previews = new ArrayList<>();
+        List<RecommendationResponse> picked = new ArrayList<>();
         Set<String> pickedSigungus = new HashSet<>();
         for (RecommendationResponse spot : byPopularity) {
             if (!pickedSigungus.add(spot.getSignguCd())) {
                 continue;
             }
-            previews.add(DashboardResponse.SpotPreview.builder()
-                    .contentId(spot.getContentId())
-                    .title(spot.getTitle())
-                    .signguNm(spot.getSignguNm())
-                    .categoryMiddle(spot.getCategoryMiddle())
-                    .rank(spot.getRank())
-                    .build());
-            if (previews.size() == DASHBOARD_SPOT_PREVIEW_COUNT) {
+            picked.add(spot);
+            if (picked.size() == DASHBOARD_SPOT_PREVIEW_COUNT) {
                 break;
             }
         }
-        return previews;
+        return picked;
     }
 
     /** hubRank 는 1 이 가장 인기다. 0 은 값이 없는 것이므로 뒤로 보낸다. */

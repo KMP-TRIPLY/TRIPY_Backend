@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -51,6 +52,10 @@ public class TourismApiServiceImpl implements TourismApiService {
     );
 
     private static final int EXTERNAL_PAGE_SIZE = 100;
+
+    // 사진 매칭용 조회 범위. 좌표가 조금 어긋나도 잡히게 넉넉히 두고, 이름으로 걸러낸다.
+    private static final int IMAGE_SEARCH_RADIUS_METERS = 2000;
+    private static final int IMAGE_SEARCH_ROWS = 30;
 
     // 데이터랩 통계 후행 공개 대비. 이 개월 수까지 거슬러 올라가며 데이터가 있는 달을 찾는다.
     private static final int BASE_YM_LOOKBACK_MONTHS = 4;
@@ -80,6 +85,86 @@ public class TourismApiServiceImpl implements TourismApiService {
             results.addAll(fetchBySigungu(key));
         }
         return results;
+    }
+
+    /**
+     * 스팟 사진 URL. 한 번 찾으면 tourism_spots 에 저장해 다시 부르지 않는다
+     * (관광공사 API 는 일일 호출 한도가 있다).
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<String> findThumbnailUrl(String openApiContentId) {
+        TourismSpot spot = tourismSpotRepository.findByOpenApiContentId(openApiContentId).orElse(null);
+        if (spot == null) {
+            return Optional.empty();
+        }
+        if (StringUtils.hasText(spot.getThumbnailUrl())) {
+            return Optional.of(spot.getThumbnailUrl());
+        }
+
+        try {
+            String image = searchImageByName(spot.getName(), spot.getLng(), spot.getLat());
+            if (!StringUtils.hasText(image)) {
+                return Optional.empty();
+            }
+            spot.updateThumbnailUrl(image);
+            return Optional.of(image);
+        } catch (Exception e) {
+            log.warn("스팟 사진 조회 실패. contentId={}, name={}", openApiContentId, spot.getName(), e);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * 좌표 주변에서 이름이 같은 곳의 사진을 찾는다.
+     *
+     * <p>거리순 1 위를 쓰면 안 된다. 국립공주박물관 좌표에서 222m 지점이 선화당이라
+     * 다른 장소 사진이 붙는다. 이름이 정확히 일치하는 것만 쓴다.
+     *
+     * <p>ponytail: 이름 완전일치만 본다. 못 찾으면 사진 없이 두는데, 적중률이 낮으면
+     * 유사도 매칭으로 넓히면 된다 - 다만 그때는 오매칭(다른 장소 사진)이 늘어난다.
+     */
+    private String searchImageByName(String name, BigDecimal lng, BigDecimal lat) {
+        if (name == null || lng == null || lat == null) {
+            return null;
+        }
+
+        String rawJson = callLocationBasedList(lng, lat, IMAGE_SEARCH_RADIUS_METERS, null, 1, IMAGE_SEARCH_ROWS);
+        String wanted = normalizeSpotName(name);
+
+        for (JsonNode item : parseItemNodes(rawJson)) {
+            String image = item.path("firstimage").asText("");
+            if (image.isBlank()) {
+                continue;
+            }
+            if (wanted.equals(normalizeSpotName(item.path("title").asText("")))) {
+                return image;
+            }
+        }
+        return null;
+    }
+
+    /** 괄호 안 부가설명("선화당(공주)")과 공백을 떼고 비교한다. */
+    static String normalizeSpotName(String name) {
+        return name == null ? "" : name
+                .replaceAll("\\(.*?\\)", "")
+                .replaceAll("\\[.*?\\]", "")
+                .replaceAll("\\s", "");
+    }
+
+    private List<JsonNode> parseItemNodes(String rawJson) {
+        List<JsonNode> nodes = new ArrayList<>();
+        try {
+            JsonNode items = objectMapper.readTree(rawJson).path("response").path("body").path("items").path("item");
+            if (items.isArray()) {
+                items.forEach(nodes::add);
+            } else if (items.isObject()) {
+                nodes.add(items);
+            }
+        } catch (Exception e) {
+            log.warn("관광정보 응답 파싱 실패");
+        }
+        return nodes;
     }
 
     private List<RecommendationResponse> fetchBySigungu(SigunguKey key) {
@@ -250,9 +335,11 @@ public class TourismApiServiceImpl implements TourismApiService {
 
                 tourismSpotRepository.findByOpenApiContentId(item.getContentId())
                         .ifPresentOrElse(
+                                // 사진 URL 은 통계 API 가 주지 않는다. 별도로 찾아 넣은 값을
+                                // null 로 덮으면 갱신마다 사라지므로 있던 값을 그대로 넘긴다.
                                 spot -> spot.update(item.getTitle(), category,
                                         item.getCategoryLarge(), item.getCategoryMiddle(), address,
-                                        lat, lng, null, item.getAreaCd(), item.getRank()),
+                                        lat, lng, spot.getThumbnailUrl(), item.getAreaCd(), item.getRank()),
                                 () -> tourismSpotRepository.save(TourismSpot.builder()
                                         .openApiContentId(item.getContentId())
                                         .name(item.getTitle())
