@@ -107,7 +107,7 @@ public class RewardServiceImpl implements RewardService {
                 continue;
             }
             for (TeamMember member : members) {
-                issueCouponIfAbsent(coupon, member, gameRoom)
+                issueCouponIfAbsent(coupon, member, gameRoom, rank)
                         .map(UserCouponResponse::from)
                         .ifPresent(issuedCoupons::add);
             }
@@ -169,28 +169,29 @@ public class RewardServiceImpl implements RewardService {
         return coupon.isActive()
                 && !now.isBefore(coupon.getValidFrom())
                 && !now.isAfter(coupon.getValidUntil())
-                && (coupon.getMinRank() == null || rank <= coupon.getMinRank())
-                && (coupon.getMaxIssueCount() == null
-                    || userCouponRepository.countByCouponId(coupon.getId()) < coupon.getMaxIssueCount());
+                && (coupon.getMinRank() == null || rank <= coupon.getMinRank());
     }
 
-    private Optional<UserCoupon> issueCouponIfAbsent(Coupon coupon, TeamMember member, GameRoom gameRoom) {
+    private Optional<UserCoupon> issueCouponIfAbsent(Coupon coupon, TeamMember member, GameRoom gameRoom, int rank) {
+        Coupon lockedCoupon = couponRepository.findByIdForUpdate(coupon.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.COUPON_NOT_FOUND));
         Optional<UserCoupon> issuedCoupon = userCouponRepository.findByCouponIdAndUserIdAndGameRoomId(
-                coupon.getId(), member.getUser().getId(), gameRoom.getId());
+                lockedCoupon.getId(), member.getUser().getId(), gameRoom.getId());
         if (issuedCoupon.isPresent()) {
             return Optional.empty();
         }
-        if (coupon.getMaxIssueCount() != null
-                && userCouponRepository.countByCouponId(coupon.getId()) >= coupon.getMaxIssueCount()) {
+        if (!isCouponEligible(lockedCoupon, rank)
+                || lockedCoupon.getMaxIssueCount() != null
+                && userCouponRepository.countByCouponId(lockedCoupon.getId()) >= lockedCoupon.getMaxIssueCount()) {
             return Optional.empty();
         }
 
         return Optional.of(userCouponRepository.save(UserCoupon.builder()
                 .user(member.getUser())
-                .coupon(coupon)
+                .coupon(lockedCoupon)
                 .gameRoom(gameRoom)
                 .couponCode(generateCouponCode())
-                .expiresAt(coupon.getValidUntil())
+                .expiresAt(lockedCoupon.getValidUntil())
                 .build()));
     }
 

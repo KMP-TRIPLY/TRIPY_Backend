@@ -228,7 +228,7 @@ public class GameRoomServiceImpl implements GameRoomService {
 
     @Override
     public List<TeamMemberResponse> getRoomMembers(Long roomId) {
-        return teamMemberRepository.findAllByTeamId(teamOfRoom(roomId).getId()).stream()
+        return teamMemberRepository.findAllByTeamIdAndIsActiveTrue(teamOfRoom(roomId).getId()).stream()
                 .map(teamMember -> TeamMemberResponse.from(
                         teamMember,
                         userTravelProfileRepository.findByUserId(teamMember.getUser().getId())

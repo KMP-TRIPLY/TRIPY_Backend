@@ -439,13 +439,13 @@ public class GamePlayServiceImpl implements GamePlayService {
 
     /** 팀원인지 확인하고 그 유저를 돌려준다. 기록에 남길 주체가 필요한 곳이 있어 검사와 조회를 합쳤다. */
     private User teamMemberUser(Long teamId, Long userId) {
-        return teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+        return teamMemberRepository.findByTeamIdAndUserIdAndIsActiveTrue(teamId, userId)
                 .map(TeamMember::getUser)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_TEAM_MEMBER));
     }
 
     private void validateRoomMember(Long roomId, Long userId) {
-        if (!teamMemberRepository.existsByTeamGameRoomIdAndUserId(roomId, userId)) {
+        if (!teamMemberRepository.existsByTeamGameRoomIdAndUserIdAndIsActiveTrue(roomId, userId)) {
             throw new CustomException(ErrorCode.NOT_TEAM_MEMBER);
         }
     }
