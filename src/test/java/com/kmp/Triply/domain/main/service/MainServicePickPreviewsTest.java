@@ -1,6 +1,5 @@
 package com.kmp.Triply.domain.main.service;
 
-import com.kmp.Triply.domain.main.dto.response.DashboardResponse;
 import com.kmp.Triply.domain.tourism.dto.response.RecommendationResponse;
 import org.junit.jupiter.api.Test;
 
@@ -26,45 +25,45 @@ class MainServicePickPreviewsTest {
 
     @Test
     void 인기_순위가_높은_순으로_고른다() {
-        List<DashboardResponse.SpotPreview> picked = MainServiceImpl.pickPreviews(List.of(
+        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
                 spot("5위", "A", 5),
                 spot("1위", "B", 1),
                 spot("3위", "C", 3),
                 spot("2위", "D", 2)));
 
-        assertThat(picked).extracting(DashboardResponse.SpotPreview::getTitle)
+        assertThat(picked).extracting(RecommendationResponse::getTitle)
                 .containsExactly("1위", "2위", "3위");
     }
 
     @Test
     void 같은_시군구는_한_곳만_고른다() {
-        List<DashboardResponse.SpotPreview> picked = MainServiceImpl.pickPreviews(List.of(
+        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
                 spot("청주1", "43111", 1),
                 spot("청주2", "43111", 2),
                 spot("청주3", "43111", 3),
                 spot("충주1", "43130", 1),
                 spot("제천1", "43150", 1)));
 
-        assertThat(picked).extracting(DashboardResponse.SpotPreview::getTitle)
+        assertThat(picked).extracting(RecommendationResponse::getTitle)
                 .containsExactly("청주1", "충주1", "제천1");
     }
 
     @Test
     void 순위가_없는_곳은_뒤로_밀린다() {
         // hubRank 가 없으면 0 으로 파싱된다. 0 을 최상위로 보면 안 된다.
-        List<DashboardResponse.SpotPreview> picked = MainServiceImpl.pickPreviews(List.of(
+        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
                 spot("순위없음", "A", 0),
                 spot("10위", "B", 10),
                 spot("20위", "C", 20)));
 
-        assertThat(picked).extracting(DashboardResponse.SpotPreview::getTitle)
+        assertThat(picked).extracting(RecommendationResponse::getTitle)
                 .containsExactly("10위", "20위", "순위없음");
     }
 
     @Test
     void 세_개보다_적으면_있는_만큼만_준다() {
-        assertThat(MainServiceImpl.pickPreviews(List.of(spot("하나", "A", 1)))).hasSize(1);
-        assertThat(MainServiceImpl.pickPreviews(List.of())).isEmpty();
+        assertThat(MainServiceImpl.pickTopSpots(List.of(spot("하나", "A", 1)))).hasSize(1);
+        assertThat(MainServiceImpl.pickTopSpots(List.of())).isEmpty();
     }
 
     @Test
@@ -73,7 +72,7 @@ class MainServicePickPreviewsTest {
                 spot("5위", "A", 5),
                 spot("1위", "B", 1)));
 
-        MainServiceImpl.pickPreviews(spots);
+        MainServiceImpl.pickTopSpots(spots);
 
         assertThat(spots).extracting(RecommendationResponse::getTitle).containsExactly("5위", "1위");
     }

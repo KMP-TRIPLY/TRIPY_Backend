@@ -75,6 +75,11 @@ public class TourismSpot {
         this.cachedAt = LocalDateTime.now();
     }
 
+    /** 사진 URL 만 채운다. 통계 API 는 사진을 주지 않아 별도 조회로 뒤늦게 붙는다. */
+    public void updateThumbnailUrl(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
     public void update(String name, SpotCategory category,
                        String categoryLarge, String categoryMiddle, String address,
                        BigDecimal lat, BigDecimal lng, String thumbnailUrl,
