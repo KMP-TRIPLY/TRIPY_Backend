@@ -1,5 +1,6 @@
 package com.kmp.Triply.global.config;
 
+import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.global.security.jwt.JwtAuthenticationFilter;
 import com.kmp.Triply.global.security.jwt.JwtProvider;
 import com.kmp.Triply.global.security.oauth2.CustomOAuth2UserService;
@@ -34,6 +35,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final CorsConfigurationSource corsConfigurationSource;
     private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -56,6 +58,7 @@ public class SecurityConfig {
                 // 봐야 가입할 이유가 생긴다. 읽기(GET)만이고 생성·삭제·스팟·미션 등록은 그대로 인증이 필요하다.
                 // 코스 상세의 미션 응답에는 정답이 담기지 않으므로(MissionResponse) 정답이 새지 않는다.
                 .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/*").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/rewards/settle", "/api/rewards/coupons").hasRole("ADMIN")
                 .anyRequest().authenticated())
             // /api/** 는 브라우저가 아닌 클라이언트가 부르므로 302 /login 대신 401 을 준다.
             // 리다이렉트로 응답하면 클라이언트는 인증 실패를 성공으로 착각한다.
@@ -70,7 +73,7 @@ public class SecurityConfig {
                 .successHandler(successHandler)
                 .failureHandler(failureHandler))
             .addFilterBefore(
-                new JwtAuthenticationFilter(jwtProvider),
+                new JwtAuthenticationFilter(jwtProvider, userRepository),
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

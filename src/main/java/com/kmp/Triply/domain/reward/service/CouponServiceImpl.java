@@ -48,7 +48,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional
     public CouponIssueResponse issueCoupon(CouponIssueRequest request) {
-        Coupon coupon = couponRepository.findById(request.getCouponId())
+        Coupon coupon = couponRepository.findByIdForUpdate(request.getCouponId())
                 .orElseThrow(() -> new CustomException(ErrorCode.COUPON_NOT_FOUND));
         validateIssuableCoupon(coupon);
 
