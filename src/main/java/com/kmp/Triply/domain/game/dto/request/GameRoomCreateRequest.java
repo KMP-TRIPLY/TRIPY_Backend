@@ -19,9 +19,9 @@ public class GameRoomCreateRequest {
 
     @NotBlank
     @Size(max = 50)
-    private String teamName;
+    private String roomName;
 
     @Min(2)
     @Max(10)
-    private short maxTeams = 4;
+    private short maxMembers = 4;
 }

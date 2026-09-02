@@ -7,6 +7,8 @@ import com.kmp.Triply.domain.tourism.service.TourismApiService;
 import com.kmp.Triply.domain.tourism.service.TourismSpotService;
 import com.kmp.Triply.global.common.ApiResponse;
 import com.kmp.Triply.global.common.PageResponse;
+import com.kmp.Triply.global.exception.CustomException;
+import com.kmp.Triply.global.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +17,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +32,12 @@ import java.math.BigDecimal;
 @RequestMapping("/api/tourism")
 @RequiredArgsConstructor
 public class TourismController {
+
+    // 관광공사 API 가 커버하는 국내 좌표 범위 (제주 남단 ~ 강원 북단, 서해 ~ 독도)
+    private static final BigDecimal KOREA_MIN_LAT = new BigDecimal("33.0");
+    private static final BigDecimal KOREA_MAX_LAT = new BigDecimal("39.0");
+    private static final BigDecimal KOREA_MIN_LNG = new BigDecimal("124.0");
+    private static final BigDecimal KOREA_MAX_LNG = new BigDecimal("132.0");
 
     private final TourismApiService tourismApiService;
     private final TourismSpotService tourismSpotService;
@@ -47,13 +56,18 @@ public class TourismController {
     }
 
     @Operation(summary = "GPS 기반 주변 관광지 조회",
-            description = "한국관광공사 국문 관광정보 서비스 GW의 locationBasedList2를 사용해 현재 위치 주변 관광지를 거리순으로 조회합니다.")
+            description = "한국관광공사 국문 관광정보 서비스 GW의 locationBasedList2를 사용해 현재 위치 주변 관광지를 거리순으로 조회합니다. "
+                    + "좌표는 mapX/mapY 또는 longitude/latitude 중 아무 이름으로나 보낼 수 있습니다.")
     @GetMapping("/spots/nearby")
     public ResponseEntity<ApiResponse<PageResponse<NearbyTourismSpotResponse>>> getNearbySpots(
             @Parameter(description = "현재 위치 경도 X 좌표", example = "127.1193983")
-            @RequestParam BigDecimal mapX,
+            @RequestParam(required = false) BigDecimal mapX,
             @Parameter(description = "현재 위치 위도 Y 좌표", example = "36.4655023")
-            @RequestParam BigDecimal mapY,
+            @RequestParam(required = false) BigDecimal mapY,
+            @Parameter(description = "mapX 대신 쓸 수 있는 경도", example = "127.1193983")
+            @RequestParam(required = false) BigDecimal longitude,
+            @Parameter(description = "mapY 대신 쓸 수 있는 위도", example = "36.4655023")
+            @RequestParam(required = false) BigDecimal latitude,
             @Parameter(description = "검색 반경(m). 최대 20000m 권장", example = "1000")
             @Min(1) @Max(20000) @RequestParam(defaultValue = "1000") int radius,
             @Parameter(description = "관광 타입 ID. 관광지=12, 문화시설=14, 행사/공연/축제=15, 여행코스=25, 레포츠=28, 숙박=32, 쇼핑=38, 음식점=39", example = "12")
@@ -61,10 +75,26 @@ public class TourismController {
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @Min(0) @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지당 항목 수", example = "20")
-            @Min(1) @Max(100) @RequestParam(defaultValue = "20") int size) {
+            @Min(1) @Max(100) @RequestParam(defaultValue = "20") int size)
+            throws MissingServletRequestParameterException {
+
+        BigDecimal x = mapX != null ? mapX : longitude;
+        BigDecimal y = mapY != null ? mapY : latitude;
+        if (x == null) throw new MissingServletRequestParameterException("mapX", "number");
+        if (y == null) throw new MissingServletRequestParameterException("mapY", "number");
+        // 관광공사 API 는 국내 좌표만 받는다. 범위 밖 좌표를 그대로 넘기면 외부 호출이 실패하고
+        // 클라이언트 잘못이 502 로 나가 서버 장애처럼 보인다. 여기서 400 으로 끊는다.
+        if (outsideKorea(x, KOREA_MIN_LNG, KOREA_MAX_LNG) || outsideKorea(y, KOREA_MIN_LAT, KOREA_MAX_LAT)) {
+            throw new CustomException(ErrorCode.INVALID_COORDINATE);
+        }
+
         return ResponseEntity.ok(ApiResponse.ok(
-                tourismApiService.getNearbyTourismSpots(mapX, mapY, radius, contentTypeId, page, size)
+                tourismApiService.getNearbyTourismSpots(x, y, radius, contentTypeId, page, size)
         ));
+    }
+
+    private static boolean outsideKorea(BigDecimal value, BigDecimal min, BigDecimal max) {
+        return value.compareTo(min) < 0 || value.compareTo(max) > 0;
     }
 
     @Operation(summary = "관광지 상세 조회", description = "contentId로 관광지 상세 정보를 반환합니다.")

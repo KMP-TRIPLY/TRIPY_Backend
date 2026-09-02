@@ -22,19 +22,18 @@ public class RankingController {
 
     private final RankingService rankingService;
 
-    @Operation(summary = "인게임 실시간 리더보드 조회", description = "게임룸의 팀전/개인전 실시간 랭킹을 조회합니다.")
+    @Operation(summary = "인게임 실시간 리더보드 조회", description = "진행 중인 게임방에서 멤버별 실시간 점수 순위를 조회합니다.")
     @GetMapping("/live")
     public ResponseEntity<ApiResponse<RankingResponse>> getLiveRankings(
-            @RequestParam Long gameRoomId,
-            @RequestParam(defaultValue = "TEAM") RankingMode mode) {
-        return ResponseEntity.ok(ApiResponse.ok(rankingService.getLiveRankings(gameRoomId, mode)));
+            @RequestParam Long gameRoomId) {
+        return ResponseEntity.ok(ApiResponse.ok(rankingService.getLiveRankings(gameRoomId)));
     }
 
-    @Operation(summary = "코스별 최종 랭킹 조회", description = "코스 기준 종료된 게임의 팀전/개인전 최종 랭킹을 조회합니다.")
+    @Operation(summary = "코스별 최종 랭킹 조회", description = "코스 기준 종료된 게임의 방별(ROOM)/개인별(PERSONAL) 최종 랭킹을 조회합니다.")
     @GetMapping("/courses/{courseId}")
     public ResponseEntity<ApiResponse<RankingResponse>> getCourseRankings(
             @PathVariable Long courseId,
-            @RequestParam(defaultValue = "TEAM") RankingMode mode) {
+            @RequestParam(defaultValue = "ROOM") RankingMode mode) {
         return ResponseEntity.ok(ApiResponse.ok(rankingService.getCourseRankings(courseId, mode)));
     }
 }

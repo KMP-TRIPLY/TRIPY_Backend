@@ -7,13 +7,15 @@ import com.kmp.Triply.domain.game.dto.response.HintResponse;
 import com.kmp.Triply.domain.game.dto.response.MissionSubmitResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayMissionResponse;
 import com.kmp.Triply.domain.game.dto.response.SpotArriveResponse;
-import com.kmp.Triply.domain.game.dto.response.TeamProgressResponse;
+import com.kmp.Triply.domain.game.dto.response.RoomProgressResponse;
 import com.kmp.Triply.domain.game.service.GamePlayService;
+import com.kmp.Triply.domain.game.service.MissionPhotoReader;
 import com.kmp.Triply.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +24,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -33,15 +37,30 @@ import java.util.List;
 public class GamePlayController {
 
     private final GamePlayService gamePlayService;
+    private final MissionPhotoReader missionPhotoReader;
 
-    @Operation(summary = "팀 진행 현황", description = "팀의 스팟별 진행 상태와 완료 미션 수, 총점을 조회합니다.")
-    @GetMapping("/game-rooms/{roomId}/teams/{teamId}/progress")
-    public ResponseEntity<ApiResponse<TeamProgressResponse>> getTeamProgress(
+    @Operation(summary = "사진 인증 미션 제출",
+            description = "이미지 파일을 올려 사진 계열(PHOTO/AR/VOICE) 미션을 제출합니다. "
+                    + "도착 인증을 마친 스팟의 미션만 제출할 수 있습니다.")
+    @PostMapping(value = "/missions/{missionId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<MissionSubmitResponse>> submitMissionPhoto(
             Authentication authentication,
-            @PathVariable Long roomId,
-            @PathVariable Long teamId) {
+            @PathVariable Long missionId,
+            @RequestParam Long roomId,
+            @RequestPart("photo") MultipartFile photo) {
         Long userId = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getTeamProgress(userId, roomId, teamId)));
+        MissionPhotoReader.Image image = missionPhotoReader.read(photo);
+        return ResponseEntity.ok(ApiResponse.ok(gamePlayService.submitPhotoMission(
+                userId, missionId, roomId, image.bytes(), image.contentType())));
+    }
+
+    @Operation(summary = "게임방 진행 현황", description = "게임방의 스팟별 진행 상태와 완료 미션 수, 총점을 조회합니다.")
+    @GetMapping("/game-rooms/{roomId}/progress")
+    public ResponseEntity<ApiResponse<RoomProgressResponse>> getRoomProgress(
+            Authentication authentication,
+            @PathVariable Long roomId) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getRoomProgress(userId, roomId)));
     }
 
     @Operation(summary = "스팟 도착 인증", description = "GPS 위치로 스팟 도착을 인증하면 해당 스팟의 미션이 활성화됩니다. (skipGps=true 시 위치 검증 생략)")
@@ -60,10 +79,9 @@ public class GamePlayController {
     public ResponseEntity<ApiResponse<List<PlayMissionResponse>>> getSpotMissions(
             Authentication authentication,
             @PathVariable Long roomId,
-            @PathVariable Long spotId,
-            @RequestParam Long teamId) {
+            @PathVariable Long spotId) {
         Long userId = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getSpotMissions(userId, roomId, spotId, teamId)));
+        return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getSpotMissions(userId, roomId, spotId)));
     }
 
     @Operation(summary = "힌트 요청", description = "미션 힌트를 열람합니다. 최초 열람 시 감점이 예약됩니다.")

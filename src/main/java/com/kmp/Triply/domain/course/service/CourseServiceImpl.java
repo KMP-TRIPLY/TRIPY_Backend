@@ -144,6 +144,21 @@ public class CourseServiceImpl implements CourseService {
         return toMissionResponse(missionRepository.save(mission));
     }
 
+    /**
+     * 실제로 지우지 않고 비활성화한다. 목록·지역 조회는 isActive=true 만 보므로 바로 사라지고,
+     * 이미 이 코스로 플레이한 게임방·랭킹은 그대로 남는다(FK 가 걸려 있어 하드 삭제는 어차피 막힌다).
+     */
+    @Override
+    @Transactional
+    public void deleteCourse(Long userId, Long courseId) {
+        Course course = getCourse(courseId);
+
+        if (course.getCreatedBy() == null || !course.getCreatedBy().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.COURSE_ACCESS_DENIED);
+        }
+        course.deactivate();
+    }
+
     private TourismSpot resolveTourismSpot(CourseSpotCreateRequest request) {
         if (request.getTourismSpotId() != null) {
             return tourismSpotRepository.findById(request.getTourismSpotId())

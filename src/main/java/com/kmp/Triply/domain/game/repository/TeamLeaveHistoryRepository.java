@@ -13,4 +13,7 @@ public interface TeamLeaveHistoryRepository extends JpaRepository<TeamLeaveHisto
             where history.team.id = :teamId
             """)
     int sumPreservedScoreByTeamId(@Param("teamId") Long teamId);
+
+    /** 스스로 하차한 적이 있는지. 있으면 그 방에는 다시 들어올 수 없다. */
+    boolean existsByGameRoomIdAndUserId(Long gameRoomId, Long userId);
 }

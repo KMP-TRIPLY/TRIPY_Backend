@@ -10,12 +10,12 @@ import lombok.Getter;
 public class GameRoomJoinResponse {
 
     private GameRoomResponse gameRoom;
-    private TeamResponse team;
+    private RoomStateResponse state;
 
     public static GameRoomJoinResponse of(GameRoom gameRoom, Team team) {
         return GameRoomJoinResponse.builder()
                 .gameRoom(GameRoomResponse.from(gameRoom))
-                .team(TeamResponse.from(team))
+                .state(RoomStateResponse.from(team))
                 .build();
     }
 }

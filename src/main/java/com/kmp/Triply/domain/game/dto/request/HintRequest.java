@@ -7,5 +7,5 @@ import lombok.Getter;
 public class HintRequest {
 
     @NotNull
-    private Long teamId;
+    private Long roomId;
 }

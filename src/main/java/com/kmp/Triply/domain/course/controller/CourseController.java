@@ -59,6 +59,17 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok(courseService.getCourseDetail(courseId)));
     }
 
+    @Operation(summary = "코스 삭제",
+            description = "본인이 만든 코스를 비활성화합니다. 목록·지역 조회에서 즉시 빠지고, 이미 진행된 게임 기록은 유지됩니다.")
+    @DeleteMapping("/{courseId}")
+    public ResponseEntity<ApiResponse<Void>> deleteCourse(
+            Authentication authentication,
+            @PathVariable Long courseId) {
+        Long userId = (Long) authentication.getPrincipal();
+        courseService.deleteCourse(userId, courseId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
     @Operation(summary = "코스 스팟 추가", description = "코스에 방문 스팟을 추가합니다. 기존 관광지를 참조하거나 새 관광지를 함께 생성할 수 있습니다.")
     @PostMapping("/{courseId}/spots")
     public ResponseEntity<ApiResponse<CourseSpotResponse>> addCourseSpot(

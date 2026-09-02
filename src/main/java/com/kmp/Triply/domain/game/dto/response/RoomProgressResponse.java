@@ -8,18 +8,18 @@ import java.util.List;
 
 @Getter
 @Builder
-public class TeamProgressResponse {
+public class RoomProgressResponse {
 
-    private Long teamId;
-    private String teamName;
+    private Long roomId;
+    private String roomName;
     private int totalScore;
     private short hintCountUsed;
     private List<SpotProgressResponse> spots;
 
-    public static TeamProgressResponse of(Team team, List<SpotProgressResponse> spots) {
-        return TeamProgressResponse.builder()
-                .teamId(team.getId())
-                .teamName(team.getTeamName())
+    public static RoomProgressResponse of(Team team, List<SpotProgressResponse> spots) {
+        return RoomProgressResponse.builder()
+                .roomId(team.getGameRoom().getId())
+                .roomName(team.getTeamName())
                 .totalScore(team.getTotalScore())
                 .hintCountUsed(team.getHintCountUsed())
                 .spots(spots)

@@ -19,10 +19,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    # 운영에서 켜두면 모든 쿼리가 stdout 으로 나가 기동·응답이 느려진다. 필요할 때만 켠다.
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${SPRING_JPA_SHOW_SQL:false}
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   # ===== Redis =====
@@ -89,8 +90,31 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${APP_OAUTH2_REDIRECT_URI:https://triply-six.vercel.app/oauth2/callback}
+    # 로그인 시작 시 ?redirect_uri= 로 고를 수 있는 콜백 목록 (완전 일치). 위 기본값도 포함해야 한다.
+    allowed-redirect-uris: ${APP_OAUTH2_ALLOWED_REDIRECT_URIS:https://triply-six.vercel.app/oauth2/callback,https://triply-qa.onrender.com,https://triply-qa.onrender.com/oauth2/callback}
   seed:
     enabled: ${APP_SEED_ENABLED:false}
+
+# ===== 미션 사진 인증 =====
+# 저장소: OCI Object Storage 의 S3 호환 API. 값이 비어 있으면 사진 미션 제출이 503 으로 거부된다.
+# (조용히 통과시키면 인증이 없는 것과 같으므로 일부러 막는다)
+mission:
+  photo:
+    max-bytes: ${MISSION_PHOTO_MAX_BYTES:5242880} # 5MB
+    storage:
+      endpoint: ${OCI_S3_ENDPOINT:}   # https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com
+      region: ${OCI_S3_REGION:ap-chuncheon-1}
+      bucket: ${OCI_S3_BUCKET:}
+      access-key: ${OCI_S3_ACCESS_KEY:}
+      secret-key: ${OCI_S3_SECRET_KEY:}
+    verification:
+      # 끄면 "업로드 성공 = 통과". AI 판정은 같은 사진에 결과가 달라질 수 있어 QA 자동화가 안 되므로
+      # 회귀 테스트를 결정적으로 돌리려면 꺼둔다.
+      enabled: ${MISSION_PHOTO_AI_ENABLED:false}
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${MISSION_PHOTO_AI_MODEL:claude-opus-5}
+      # 이 값 이상이면 통과. 오탐으로 게임이 막히면 재배포 없이 조정할 수 있어야 한다.
+      threshold: ${MISSION_PHOTO_AI_THRESHOLD:0.7}
 
 # ===== Korea Tourism Open API =====
 tourism:

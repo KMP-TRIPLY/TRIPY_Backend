@@ -23,4 +23,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     Optional<TeamMember> findByTeamGameRoomIdAndUserIdAndIsActiveTrue(Long gameRoomId, Long userId);
 
     boolean existsByTeamGameRoomIdAndUserIdAndIsActiveTrue(Long gameRoomId, Long userId);
+
+    long countByTeamGameRoomId(Long gameRoomId);
 }
