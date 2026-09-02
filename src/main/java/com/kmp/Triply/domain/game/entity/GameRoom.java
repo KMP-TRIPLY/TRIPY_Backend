@@ -48,8 +48,8 @@ public class GameRoom {
     @Column(name = "game_mode", nullable = false, length = 10)
     private GameMode gameMode = GameMode.TEAM;
 
-    @Column(name = "max_teams", nullable = false, columnDefinition = "smallint default 4")
-    private short maxTeams = 4;
+    @Column(name = "max_members", nullable = false, columnDefinition = "smallint default 4")
+    private short maxMembers = 4;
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;
@@ -62,13 +62,13 @@ public class GameRoom {
     private LocalDateTime createdAt;
 
     @Builder
-    private GameRoom(Course course, User host, String roomCode, String passwordHash, GameMode gameMode, short maxTeams) {
+    private GameRoom(Course course, User host, String roomCode, String passwordHash, GameMode gameMode, short maxMembers) {
         this.course = course;
         this.host = host;
         this.roomCode = roomCode;
         this.passwordHash = passwordHash;
         this.gameMode = gameMode;
-        this.maxTeams = maxTeams;
+        this.maxMembers = maxMembers;
     }
 
     public void changeCourse(Course course) {

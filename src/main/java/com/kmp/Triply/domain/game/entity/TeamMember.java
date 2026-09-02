@@ -30,10 +30,6 @@ public class TeamMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 15)
-    private TeamRole role = TeamRole.MEMBER;
-
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
@@ -44,15 +40,20 @@ public class TeamMember {
     private boolean isActive = true;
 
     @Builder
-    private TeamMember(Team team, User user, TeamRole role) {
+    private TeamMember(Team team, User user) {
         this.team = team;
         this.user = user;
-        this.role = role;
         this.joinedAt = LocalDateTime.now();
     }
 
     public void leave() {
         this.isActive = false;
         this.leftAt = LocalDateTime.now();
+    }
+
+    /** 나갔던 멤버가 같은 방에 다시 들어온다. 팀은 원래대로 유지한다. */
+    public void rejoin() {
+        this.isActive = true;
+        this.leftAt = null;
     }
 }

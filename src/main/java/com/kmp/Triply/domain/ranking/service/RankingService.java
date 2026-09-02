@@ -5,7 +5,7 @@ import com.kmp.Triply.domain.ranking.dto.response.RankingResponse;
 
 public interface RankingService {
 
-    RankingResponse getLiveRankings(Long gameRoomId, RankingMode mode);
+    RankingResponse getLiveRankings(Long gameRoomId);
 
     RankingResponse getCourseRankings(Long courseId, RankingMode mode);
 }

@@ -39,7 +39,7 @@ public class Ranking {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ranking_type", nullable = false, length = 20)
-    private RankingType rankingType = RankingType.TEAM;
+    private RankingType rankingType = RankingType.ROOM;
 
     @Column(nullable = false, columnDefinition = "smallint")
     private short rank;

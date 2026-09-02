@@ -47,8 +47,8 @@ public enum ErrorCode {
     TEAM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "팀 멤버를 찾을 수 없습니다."),
     INVALID_GAME_ROOM_STATUS(HttpStatus.BAD_REQUEST, "현재 게임 방 상태에서 수행할 수 없는 요청입니다."),
     ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
-    ALREADY_JOINED_ROOM(HttpStatus.CONFLICT, "이미 참여한 게임 방입니다."),
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
+    LEFT_ROOM_CANNOT_REJOIN(HttpStatus.CONFLICT, "하차한 게임 방에는 다시 참여할 수 없습니다."),
     INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
 
     // Game Play (미션 대결)
@@ -59,6 +59,10 @@ public enum ErrorCode {
     SPOT_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "스팟에 먼저 도착(인증)해야 합니다."),
     OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "스팟 반경 밖입니다. 더 가까이 이동하세요."),
     MISSION_ALREADY_SOLVED(HttpStatus.CONFLICT, "이미 해결한 미션입니다."),
+    PHOTO_SUBMIT_REQUIRED(HttpStatus.BAD_REQUEST, "사진 인증 미션은 사진 업로드로 제출해야 합니다."),
+    NOT_PHOTO_MISSION(HttpStatus.BAD_REQUEST, "사진으로 제출할 수 없는 미션입니다."),
+    INVALID_PHOTO(HttpStatus.BAD_REQUEST, "이미지 파일이 아니거나 허용 크기를 넘었습니다."),
+    PHOTO_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "사진 저장소를 사용할 수 없습니다."),
 
     // Reward
     COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),

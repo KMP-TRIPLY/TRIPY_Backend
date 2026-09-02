@@ -7,7 +7,7 @@ import lombok.Getter;
 public class MissionSubmitRequest {
 
     @NotNull
-    private Long teamId;
+    private Long roomId;
 
     // QUIZ_TEXT / QUIZ_CHOICE 제출값
     private String submittedValue;

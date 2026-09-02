@@ -13,9 +13,4 @@ public class GameRoomJoinRequest {
 
     @NotBlank
     private String password;
-
-    private Long teamId;
-
-    @Size(max = 50)
-    private String teamName;
 }

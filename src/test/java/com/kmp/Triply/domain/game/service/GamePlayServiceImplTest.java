@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kmp.Triply.domain.course.entity.Mission;
 import com.kmp.Triply.domain.course.entity.MissionType;
 import com.kmp.Triply.domain.game.dto.request.MissionSubmitRequest;
+import com.kmp.Triply.global.exception.CustomException;
+import com.kmp.Triply.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 채점·점수 계산만 검증한다. 나머지 의존성은 grade/scoreFor 경로에서 쓰이지 않아 null.
@@ -16,7 +19,7 @@ class GamePlayServiceImplTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final GamePlayServiceImpl service =
-            new GamePlayServiceImpl(null, null, null, null, null, null, null, MAPPER);
+            new GamePlayServiceImpl(null, null, null, null, null, null, null, MAPPER, null, null);
 
     private static final String CHOICES = """
             [{"label":"경복궁","value":"A","is_correct":true},
@@ -45,12 +48,26 @@ class GamePlayServiceImplTest {
     }
 
     @Test
-    void 인증형_미션은_제출물_존재만_확인한다() throws Exception {
-        Mission mission = quiz(MissionType.PHOTO, null, null);
+    void 사진_계열은_문자열_제출로_통과시키지_않는다() throws Exception {
+        // 예전에는 photoUrl 에 아무 문자열이나 넣으면 통과했다
+        for (MissionType type : new MissionType[]{MissionType.PHOTO, MissionType.AR, MissionType.VOICE}) {
+            Mission mission = quiz(type, null, null);
+            assertThatThrownBy(() -> service.grade(mission, submit(null, "https://s3/a.jpg")))
+                    .isInstanceOf(CustomException.class)
+                    .extracting(e -> ((CustomException) e).getErrorCode())
+                    .isEqualTo(ErrorCode.PHOTO_SUBMIT_REQUIRED);
+            assertThat(GamePlayServiceImpl.requiresPhotoUpload(type)).isTrue();
+        }
+    }
 
-        assertThat(service.grade(mission, submit(null, "https://s3/a.jpg"))).isTrue();
-        assertThat(service.grade(mission, submit(null, "  "))).isFalse();
+    @Test
+    void NFC_는_태그값_제출로_채점한다() throws Exception {
+        Mission mission = quiz(MissionType.NFC, null, null);
+
+        assertThat(service.grade(mission, submit("tag-1234", null))).isTrue();
+        assertThat(service.grade(mission, submit("  ", null))).isFalse();
         assertThat(service.grade(mission, submit(null, null))).isFalse();
+        assertThat(GamePlayServiceImpl.requiresPhotoUpload(MissionType.NFC)).isFalse();
     }
 
     @Test
@@ -79,7 +96,7 @@ class GamePlayServiceImplTest {
 
     private static MissionSubmitRequest submit(String submittedValue, String photoUrl) throws Exception {
         return MAPPER.readValue("""
-                {"teamId":1,"submittedValue":%s,"photoUrl":%s}
+                {"roomId":1,"submittedValue":%s,"photoUrl":%s}
                 """.formatted(json(submittedValue), json(photoUrl)), MissionSubmitRequest.class);
     }
 

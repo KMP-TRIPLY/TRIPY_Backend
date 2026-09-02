@@ -11,14 +11,12 @@ import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
-import com.kmp.Triply.domain.game.dto.response.TeamRankingResponse;
 import com.kmp.Triply.domain.game.entity.GameMode;
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.GameStatus;
 import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.entity.TeamLeaveHistory;
 import com.kmp.Triply.domain.game.entity.TeamMember;
-import com.kmp.Triply.domain.game.entity.TeamRole;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
 import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
@@ -36,7 +34,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -77,10 +74,10 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .roomCode(generateRoomCode())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .gameMode(GameMode.TEAM)
-                .maxTeams(request.getMaxTeams())
+                .maxMembers(request.getMaxMembers())
                 .build());
 
-        Team team = createTeamWithMember(gameRoom, host, request.getTeamName(), TeamRole.LEADER);
+        Team team = createTeamWithMember(gameRoom, host, request.getRoomName());
         GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, team);
         realtimeNotifier.publish(gameRoom.getId(), "ROOM_CREATED", "게임 방이 생성되었습니다.", response);
         return response;
@@ -93,17 +90,26 @@ public class GameRoomServiceImpl implements GameRoomService {
         GameRoom gameRoom = gameRoomRepository.findByRoomCode(normalizeRoomCode(request.getRoomCode()))
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
 
-        validateWaitingRoom(gameRoom);
         validatePassword(gameRoom, request.getPassword());
-        if (teamMemberRepository.existsByTeamGameRoomIdAndUserId(gameRoom.getId(), userId)) {
-            throw new CustomException(ErrorCode.ALREADY_JOINED_ROOM);
+
+        // 이미 이 방의 멤버라면 새로 넣지 않고 원래 팀으로 돌려보낸다.
+        // 앱을 껐다 켜거나 네트워크가 끊겨 다시 들어오는 경우가 정상 흐름이므로 실패로 처리하면 안 된다.
+        // 진행 중(RUNNING)인 방도 재입장은 허용한다 — 막으면 게임 도중 튕긴 사람이 복귀할 수 없다.
+        var existing = teamMemberRepository.findByTeamGameRoomIdAndUserId(gameRoom.getId(), userId);
+        if (existing.isPresent()) {
+            return rejoinRoom(gameRoom, existing.get());
         }
 
-        Team team = resolveJoinTeam(gameRoom, user, request);
+        // 새로 들어오는 사람만 대기 중인 방으로 제한한다.
+        validateWaitingRoom(gameRoom);
+        if (teamMemberRepository.countByTeamGameRoomId(gameRoom.getId()) >= gameRoom.getMaxMembers()) {
+            throw new CustomException(ErrorCode.ROOM_CAPACITY_EXCEEDED);
+        }
+
+        Team team = teamOfRoom(gameRoom.getId());
         TeamMember teamMember = TeamMember.builder()
                 .team(team)
                 .user(user)
-                .role(TeamRole.MEMBER)
                 .build();
         teamMemberRepository.save(teamMember);
 
@@ -147,16 +153,36 @@ public class GameRoomServiceImpl implements GameRoomService {
     @Transactional
     public TeamLeaveResponse leaveRoom(Long userId, Long roomId, TeamLeaveRequest request) {
         GameRoom gameRoom = getRoom(roomId);
-        if (gameRoom.getStatus() != GameStatus.RUNNING) {
-            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
-        }
-
         TeamMember teamMember = teamMemberRepository.findByTeamGameRoomIdAndUserIdAndIsActiveTrue(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.TEAM_MEMBER_NOT_FOUND));
-        if (teamMember.getRole() == TeamRole.LEADER) {
+        // 방장은 못 나간다. 방을 시작·종료할 사람이 사라지면 남은 사람들이 방에 갇힌다.
+        if (gameRoom.getHost().getId().equals(userId)) {
             throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
         }
 
+        return switch (gameRoom.getStatus()) {
+            case WAITING -> leaveWaitingRoom(gameRoom, teamMember);
+            case RUNNING -> leaveRunningRoom(gameRoom, teamMember, request, userId);
+            default -> throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
+        };
+    }
+
+    /**
+     * 대기실 하차. 아직 시작 전이므로 기록을 남기지 않고 멤버 행 자체를 지운다.
+     * 하차 이력이 없으니 마음이 바뀌면 다시 들어올 수 있다 — 시작 전에는 그게 자연스럽다.
+     */
+    private TeamLeaveResponse leaveWaitingRoom(GameRoom gameRoom, TeamMember teamMember) {
+        Long userId = teamMember.getUser().getId();
+        teamMemberRepository.delete(teamMember);
+
+        TeamLeaveResponse response = TeamLeaveResponse.ofWaitingRoom(gameRoom.getId(), userId);
+        realtimeNotifier.publish(gameRoom.getId(), "MEMBER_LEFT", "멤버가 대기실에서 나갔습니다.", response);
+        return response;
+    }
+
+    /** 진행 중 하차. 사유를 남기고 그때까지 낸 점수는 팀에 남긴다. 이 방에는 다시 못 들어온다. */
+    private TeamLeaveResponse leaveRunningRoom(GameRoom gameRoom, TeamMember teamMember,
+                                               TeamLeaveRequest request, Long userId) {
         int preservedScore = missionAttemptRepository.sumScoreByTeamIdAndUserId(
                 teamMember.getTeam().getId(),
                 userId
@@ -172,7 +198,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .build());
 
         TeamLeaveResponse response = TeamLeaveResponse.from(history);
-        realtimeNotifier.publish(roomId, "MEMBER_LEFT", "멤버가 게임 방에서 탈퇴했습니다.", response);
+        realtimeNotifier.publish(gameRoom.getId(), "MEMBER_LEFT", "멤버가 게임 방에서 하차했습니다.", response);
         return response;
     }
 
@@ -199,22 +225,8 @@ public class GameRoomServiceImpl implements GameRoomService {
     }
 
     @Override
-    public List<TeamRankingResponse> getRankings(Long roomId) {
-        if (!gameRoomRepository.existsById(roomId)) {
-            throw new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND);
-        }
-
-        List<Object[]> teamRankingRows = teamRepository.findTeamRankingRowsByGameRoomId(roomId);
-        return toRankings(teamRankingRows);
-    }
-
-    @Override
-    public List<TeamMemberResponse> getTeamMembers(Long teamId) {
-        if (!teamRepository.existsById(teamId)) {
-            throw new CustomException(ErrorCode.TEAM_NOT_FOUND);
-        }
-
-        return teamMemberRepository.findAllByTeamId(teamId).stream()
+    public List<TeamMemberResponse> getRoomMembers(Long roomId) {
+        return teamMemberRepository.findAllByTeamId(teamOfRoom(roomId).getId()).stream()
                 .map(teamMember -> TeamMemberResponse.from(
                         teamMember,
                         userTravelProfileRepository.findByUserId(teamMember.getUser().getId())
@@ -239,40 +251,46 @@ public class GameRoomServiceImpl implements GameRoomService {
         realtimeNotifier.publish(roomId, "MEMBER_KICKED", "멤버가 게임 방에서 강퇴되었습니다.", userId);
     }
 
-    private Team resolveJoinTeam(GameRoom gameRoom, User user, GameRoomJoinRequest request) {
-        if (request.getTeamId() != null) {
-            Team team = teamRepository.findById(request.getTeamId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.TEAM_NOT_FOUND));
-            if (!team.getGameRoom().getId().equals(gameRoom.getId())) {
-                throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
-            }
-            return team;
+    /**
+     * 재입장. 요청에 teamId 가 있어도 무시하고 원래 팀으로 돌려보낸다 —
+     * 재입장을 빌미로 팀을 갈아타면 점수가 따라다니게 된다.
+     */
+    private GameRoomJoinResponse rejoinRoom(GameRoom gameRoom, TeamMember member) {
+        if (gameRoom.getStatus() == GameStatus.FINISHED) {
+            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
-
-        if (teamRepository.countByGameRoomId(gameRoom.getId()) >= gameRoom.getMaxTeams()) {
-            throw new CustomException(ErrorCode.ROOM_CAPACITY_EXCEEDED);
+        // 스스로 하차한 사람은 못 돌아온다. 끊겨서 다시 붙는 것과 구분하는 기준이 하차 이력이다
+        // (튕긴 경우는 클라이언트가 아무 API 도 부르지 않으므로 이력이 남지 않는다).
+        if (teamLeaveHistoryRepository.existsByGameRoomIdAndUserId(
+                gameRoom.getId(), member.getUser().getId())) {
+            throw new CustomException(ErrorCode.LEFT_ROOM_CANNOT_REJOIN);
         }
-
-        String teamName = StringUtils.hasText(request.getTeamName())
-                ? request.getTeamName()
-                : user.getNickname() + " 팀";
-        return teamRepository.save(Team.builder()
-                .gameRoom(gameRoom)
-                .leader(user)
-                .teamName(teamName)
-                .build());
+        if (!member.isActive()) {
+            member.rejoin();
+        }
+        GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, member.getTeam());
+        realtimeNotifier.publish(gameRoom.getId(), "MEMBER_REJOINED", "멤버가 다시 참여했습니다.", response);
+        return response;
     }
 
-    private Team createTeamWithMember(GameRoom gameRoom, User user, String teamName, TeamRole role) {
+    /**
+     * 방 하나에 팀 하나. 방을 만들 때 같이 만들어지므로 항상 존재한다.
+     * ponytail: teams 테이블을 GameRoom 에 흡수하지 않고 1:1 로 남겨둔 상태 —
+     * 점수·진행상황 컬럼과 reward·ranking 도메인의 FK 를 옮기는 마이그레이션이 필요해 별건으로 미뤘다.
+     */
+    private Team teamOfRoom(Long roomId) {
+        return teamRepository.findFirstByGameRoomIdOrderByIdAsc(roomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.TEAM_NOT_FOUND));
+    }
+
+    private Team createTeamWithMember(GameRoom gameRoom, User user, String teamName) {
         Team team = teamRepository.save(Team.builder()
                 .gameRoom(gameRoom)
-                .leader(user)
                 .teamName(teamName)
                 .build());
         teamMemberRepository.save(TeamMember.builder()
                 .team(team)
                 .user(user)
-                .role(role)
                 .build());
         return team;
     }
@@ -321,20 +339,6 @@ public class GameRoomServiceImpl implements GameRoomService {
         return roomCode;
     }
 
-    private List<TeamRankingResponse> toRankings(List<Object[]> teamRankingRows) {
-        return java.util.stream.IntStream.range(0, teamRankingRows.size())
-                .mapToObj(index -> {
-                    Object[] row = teamRankingRows.get(index);
-                    return TeamRankingResponse.of(
-                            (Team) row[0],
-                            index + 1,
-                            ((Number) row[1]).intValue(),
-                            ((Number) row[3]).shortValue()
-                    );
-                })
-                .toList();
-    }
-
     private void saveFinalRankings(GameRoom gameRoom, List<Object[]> teamRankingRows) {
         rankingRepository.deleteByGameRoomId(gameRoom.getId());
 
@@ -345,7 +349,7 @@ public class GameRoomServiceImpl implements GameRoomService {
             rankings.add(Ranking.builder()
                     .gameRoom(gameRoom)
                     .team(team)
-                    .rankingType(RankingType.TEAM)
+                    .rankingType(RankingType.ROOM)
                     .rank((short) (index + 1))
                     .finalScore(((Number) row[1]).intValue())
                     .missionClearCount(((Number) row[2]).shortValue())

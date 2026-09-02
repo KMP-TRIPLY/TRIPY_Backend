@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kmp.Triply.domain.course.dto.response.MissionChoiceResponse;
 import com.kmp.Triply.domain.course.entity.CourseSpot;
 import com.kmp.Triply.domain.course.entity.Mission;
+import com.kmp.Triply.domain.course.entity.MissionType;
 import com.kmp.Triply.domain.course.repository.CourseSpotRepository;
 import com.kmp.Triply.domain.course.repository.MissionRepository;
 import com.kmp.Triply.domain.game.dto.request.HintRequest;
@@ -16,7 +17,7 @@ import com.kmp.Triply.domain.game.dto.response.PlayChoiceResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayMissionResponse;
 import com.kmp.Triply.domain.game.dto.response.SpotArriveResponse;
 import com.kmp.Triply.domain.game.dto.response.SpotProgressResponse;
-import com.kmp.Triply.domain.game.dto.response.TeamProgressResponse;
+import com.kmp.Triply.domain.game.dto.response.RoomProgressResponse;
 import com.kmp.Triply.domain.game.entity.AttemptResult;
 import com.kmp.Triply.domain.game.entity.AttemptType;
 import com.kmp.Triply.domain.game.entity.GameProgress;
@@ -25,6 +26,7 @@ import com.kmp.Triply.domain.game.entity.GameStatus;
 import com.kmp.Triply.domain.game.entity.MissionAttempt;
 import com.kmp.Triply.domain.game.entity.ProgressStatus;
 import com.kmp.Triply.domain.game.entity.Team;
+import com.kmp.Triply.domain.game.entity.TeamMember;
 import com.kmp.Triply.domain.game.repository.GameProgressRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
@@ -58,27 +60,29 @@ public class GamePlayServiceImpl implements GamePlayService {
     private final CourseSpotRepository courseSpotRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
     private final ObjectMapper objectMapper;
+    private final PhotoStorageService photoStorage;
+    private final PhotoVerificationService photoVerifier;
 
     @Override
-    public TeamProgressResponse getTeamProgress(Long userId, Long roomId, Long teamId) {
-        Team team = getTeamInRoom(teamId, roomId);
+    public RoomProgressResponse getRoomProgress(Long userId, Long roomId) {
+        Team team = teamOfRoom(roomId);
         validateRoomMember(roomId, userId);
 
         Long courseId = team.getGameRoom().getCourse().getId();
         List<CourseSpot> spots = courseSpotRepository.findAllByCourseIdOrderBySequenceOrderAsc(courseId);
 
         List<SpotProgressResponse> spotProgresses = spots.stream()
-                .map(spot -> toSpotProgress(teamId, spot))
+                .map(spot -> toSpotProgress(team.getId(), spot))
                 .toList();
 
-        return TeamProgressResponse.of(team, spotProgresses);
+        return RoomProgressResponse.of(team, spotProgresses);
     }
 
     @Override
     @Transactional
     public SpotArriveResponse arriveSpot(Long userId, Long roomId, Long spotId, SpotArriveRequest request) {
-        Team team = getTeamInRoom(request.getTeamId(), roomId);
-        validateTeamMember(team.getId(), userId);
+        Team team = teamOfRoom(roomId);
+        teamMemberUser(team.getId(), userId);
         GameRoom room = team.getGameRoom();
         validateRunning(room);
 
@@ -114,12 +118,12 @@ public class GamePlayServiceImpl implements GamePlayService {
     }
 
     @Override
-    public List<PlayMissionResponse> getSpotMissions(Long userId, Long roomId, Long spotId, Long teamId) {
-        Team team = getTeamInRoom(teamId, roomId);
+    public List<PlayMissionResponse> getSpotMissions(Long userId, Long roomId, Long spotId) {
+        Team team = teamOfRoom(roomId);
         validateRoomMember(roomId, userId);
 
         CourseSpot spot = getCourseSpotInCourse(spotId, team.getGameRoom().getCourse().getId());
-        GameProgress progress = getActiveOrCompletedProgress(teamId, spot.getId());
+        GameProgress progress = getActiveOrCompletedProgress(team.getId(), spot.getId());
 
         Set<Long> solvedMissionIds = missionAttemptRepository
                 .findAllByGameProgressIdAndResult(progress.getId(), AttemptResult.CORRECT).stream()
@@ -142,8 +146,8 @@ public class GamePlayServiceImpl implements GamePlayService {
     @Transactional
     public HintResponse requestHint(Long userId, Long missionId, HintRequest request) {
         Mission mission = getMission(missionId);
-        Team team = team(request.getTeamId());
-        validateTeamMember(team.getId(), userId);
+        Team team = teamOfRoom(request.getRoomId());
+        User requester = teamMemberUser(team.getId(), userId);
         validateRunning(team.getGameRoom());
         validateMissionInCourse(mission, team.getGameRoom().getCourse().getId());
 
@@ -159,7 +163,7 @@ public class GamePlayServiceImpl implements GamePlayService {
             missionAttemptRepository.save(MissionAttempt.builder()
                     .gameProgress(progress)
                     .mission(mission)
-                    .user(team.getLeader())
+                    .user(requester)
                     .attemptType(AttemptType.HINT_REQUEST)
                     .result(AttemptResult.PENDING)
                     .scoreEarned(0)
@@ -179,9 +183,38 @@ public class GamePlayServiceImpl implements GamePlayService {
     @Transactional
     public MissionSubmitResponse submitMission(Long userId, Long missionId, MissionSubmitRequest request) {
         Mission mission = getMission(missionId);
-        Team team = teamRepository.findById(request.getTeamId())
-                .orElseThrow(() -> new CustomException(ErrorCode.TEAM_NOT_FOUND));
-        validateTeamMember(team.getId(), userId);
+        // 사진 계열은 문자열만 보내면 통과하던 구멍이 있었다. 실제 이미지를 받는 전용 경로로만 받는다.
+        if (requiresPhotoUpload(mission.getMissionType())) {
+            throw new CustomException(ErrorCode.PHOTO_SUBMIT_REQUIRED);
+        }
+        Submission submission = validateSubmission(userId, missionId, request.getRoomId(), mission);
+        return record(submission, grade(mission, request), request.getSubmittedValue(), null, null);
+    }
+
+    @Override
+    @Transactional
+    public MissionSubmitResponse submitPhotoMission(Long userId, Long missionId, Long roomId,
+                                                    byte[] image, String contentType) {
+        Mission mission = getMission(missionId);
+        if (!requiresPhotoUpload(mission.getMissionType())) {
+            throw new CustomException(ErrorCode.NOT_PHOTO_MISSION);
+        }
+        // 업로드·AI 호출은 비싸다. 팀원·진행중·도착인증·중복 검사를 모두 통과한 뒤에만 부른다.
+        Submission submission = validateSubmission(userId, missionId, roomId, mission);
+
+        String photoKey = photoStorage.upload(image, contentType, missionId, submission.team().getId());
+        PhotoVerdict verdict = photoVerifier.verify(image, contentType, mission);
+        return record(submission, verdict.passed(), null, photoKey, verdict.note());
+    }
+
+    static boolean requiresPhotoUpload(MissionType type) {
+        return type == MissionType.PHOTO || type == MissionType.AR || type == MissionType.VOICE;
+    }
+
+    /** 제출 전 공통 검사. 통과하면 채점에 필요한 것들을 묶어 돌려준다. */
+    private Submission validateSubmission(Long userId, Long missionId, Long roomId, Mission mission) {
+        Team team = teamOfRoom(roomId);
+        User submitter = teamMemberUser(team.getId(), userId);
         GameRoom room = team.getGameRoom();
         validateRunning(room);
         validateMissionInCourse(mission, room.getCourse().getId());
@@ -196,21 +229,33 @@ public class GamePlayServiceImpl implements GamePlayService {
 
         boolean hintUsed = missionAttemptRepository.existsByGameProgressIdAndMissionIdAndAttemptType(
                 progress.getId(), missionId, AttemptType.HINT_REQUEST);
-        boolean correct = grade(mission, request);
+        return new Submission(submitter, mission, team, room, spot, progress, hintUsed);
+    }
+
+    private record Submission(User user, Mission mission, Team team, GameRoom room,
+                              CourseSpot spot, GameProgress progress, boolean hintUsed) {}
+
+    private MissionSubmitResponse record(Submission submission, boolean correct,
+                                         String submittedValue, String photoKey, String verificationNote) {
+        Long missionId = submission.mission().getId();
+        Mission mission = submission.mission();
+        Team team = submission.team();
+        GameRoom room = submission.room();
+        CourseSpot spot = submission.spot();
+        GameProgress progress = submission.progress();
+        boolean hintUsed = submission.hintUsed();
+
         AttemptResult result = correct ? AttemptResult.CORRECT : AttemptResult.WRONG;
         int scoreEarned = correct ? scoreFor(mission, hintUsed) : 0;
-
-        User submitter = teamMemberRepository.findByTeamIdAndUserId(team.getId(), userId)
-                .map(member -> member.getUser())
-                .orElse(team.getLeader());
 
         missionAttemptRepository.save(MissionAttempt.builder()
                 .gameProgress(progress)
                 .mission(mission)
-                .user(submitter)
+                .user(submission.user())
                 .attemptType(AttemptType.SUBMIT)
-                .submittedValue(request.getSubmittedValue())
-                .photoUrl(request.getPhotoUrl())
+                .submittedValue(submittedValue)
+                .photoUrl(photoKey)
+                .verificationNote(verificationNote)
                 .result(result)
                 .scoreEarned(scoreEarned)
                 .hintUsed(hintUsed)
@@ -259,7 +304,9 @@ public class GamePlayServiceImpl implements GamePlayService {
         return switch (mission.getMissionType()) {
             case QUIZ_TEXT -> matchesText(request.getSubmittedValue(), mission.getAnswer());
             case QUIZ_CHOICE -> matchesCorrectChoice(mission.getChoices(), request.getSubmittedValue());
-            case PHOTO, NFC, AR, VOICE -> StringUtils.hasText(request.getPhotoUrl());
+            // NFC 는 태그 값을 제출한다. 사진 계열은 여기로 오지 않는다 (submitMission 에서 막힘).
+            case NFC -> StringUtils.hasText(request.getSubmittedValue());
+            case PHOTO, AR, VOICE -> throw new CustomException(ErrorCode.PHOTO_SUBMIT_REQUIRED);
         };
     }
 
@@ -358,17 +405,9 @@ public class GamePlayServiceImpl implements GamePlayService {
         return progress;
     }
 
-    private Team getTeamInRoom(Long teamId, Long roomId) {
-        Team team = teamRepository.findById(teamId)
-                .orElseThrow(() -> new CustomException(ErrorCode.TEAM_NOT_FOUND));
-        if (roomId != null && !team.getGameRoom().getId().equals(roomId)) {
-            throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
-        }
-        return team;
-    }
-
-    private Team team(Long teamId) {
-        return teamRepository.findById(teamId)
+    /** 방 하나에 팀 하나. 방을 만들 때 같이 만들어지므로 항상 존재한다. */
+    private Team teamOfRoom(Long roomId) {
+        return teamRepository.findFirstByGameRoomIdOrderByIdAsc(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.TEAM_NOT_FOUND));
     }
 
@@ -398,10 +437,11 @@ public class GamePlayServiceImpl implements GamePlayService {
         }
     }
 
-    private void validateTeamMember(Long teamId, Long userId) {
-        if (teamMemberRepository.findByTeamIdAndUserId(teamId, userId).isEmpty()) {
-            throw new CustomException(ErrorCode.NOT_TEAM_MEMBER);
-        }
+    /** 팀원인지 확인하고 그 유저를 돌려준다. 기록에 남길 주체가 필요한 곳이 있어 검사와 조회를 합쳤다. */
+    private User teamMemberUser(Long teamId, Long userId) {
+        return teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
+                .map(TeamMember::getUser)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_TEAM_MEMBER));
     }
 
     private void validateRoomMember(Long roomId, Long userId) {

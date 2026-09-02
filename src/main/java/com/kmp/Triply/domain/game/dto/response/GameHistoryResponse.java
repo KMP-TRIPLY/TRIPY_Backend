@@ -20,11 +20,11 @@ public class GameHistoryResponse {
     @Schema(description = "코스 제목", example = "강릉 바다 여행 코스")
     private String courseTitle;
 
-    @Schema(description = "팀 이름", example = "1조")
-    private String teamName;
+    @Schema(description = "방 이름", example = "1조")
+    private String roomName;
 
-    @Schema(description = "팀 상태", example = "FINISHED")
-    private TeamStatus teamStatus;
+    @Schema(description = "방 진행 상태", example = "FINISHED")
+    private TeamStatus roomPlayStatus;
 
     @Schema(description = "게임 상태", example = "FINISHED")
     private GameStatus gameStatus;
@@ -48,8 +48,8 @@ public class GameHistoryResponse {
         return GameHistoryResponse.builder()
                 .gameRoomId(teamMember.getTeam().getGameRoom().getId())
                 .courseTitle(teamMember.getTeam().getGameRoom().getCourse().getTitle())
-                .teamName(teamMember.getTeam().getTeamName())
-                .teamStatus(teamMember.getTeam().getStatus())
+                .roomName(teamMember.getTeam().getTeamName())
+                .roomPlayStatus(teamMember.getTeam().getStatus())
                 .gameStatus(teamMember.getTeam().getGameRoom().getStatus())
                 .totalScore(teamMember.getTeam().getTotalScore())
                 .rank(teamMember.getTeam().getRank())

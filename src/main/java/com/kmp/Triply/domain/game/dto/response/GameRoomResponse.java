@@ -19,7 +19,7 @@ public class GameRoomResponse {
     private String roomCode;
     private GameStatus status;
     private GameMode gameMode;
-    private short maxTeams;
+    private short maxMembers;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private LocalDateTime createdAt;
@@ -33,7 +33,7 @@ public class GameRoomResponse {
                 .roomCode(gameRoom.getRoomCode())
                 .status(gameRoom.getStatus())
                 .gameMode(gameRoom.getGameMode())
-                .maxTeams(gameRoom.getMaxTeams())
+                .maxMembers(gameRoom.getMaxMembers())
                 .startedAt(gameRoom.getStartedAt())
                 .endedAt(gameRoom.getEndedAt())
                 .createdAt(gameRoom.getCreatedAt())

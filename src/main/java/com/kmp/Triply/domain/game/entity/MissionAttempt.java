@@ -45,6 +45,10 @@ public class MissionAttempt {
     @Column(name = "photo_url", length = 500)
     private String photoUrl;
 
+    /** 사진 미션의 AI 판정 근거. 플레이어가 이의를 제기했을 때 왜 그렇게 판정됐는지 확인한다. */
+    @Column(name = "verification_note", length = 500)
+    private String verificationNote;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
     private AttemptResult result;
@@ -61,13 +65,15 @@ public class MissionAttempt {
     @Builder
     private MissionAttempt(GameProgress gameProgress, Mission mission, User user,
                            AttemptType attemptType, String submittedValue, String photoUrl,
-                           AttemptResult result, int scoreEarned, boolean hintUsed) {
+                           String verificationNote, AttemptResult result, int scoreEarned,
+                           boolean hintUsed) {
         this.gameProgress = gameProgress;
         this.mission = mission;
         this.user = user;
         this.attemptType = attemptType;
         this.submittedValue = submittedValue;
         this.photoUrl = photoUrl;
+        this.verificationNote = verificationNote;
         this.result = result;
         this.scoreEarned = scoreEarned;
         this.hintUsed = hintUsed;

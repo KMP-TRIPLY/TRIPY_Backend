@@ -4,10 +4,8 @@ import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.GameStatus;
-import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
-import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.ranking.dto.request.RankingMode;
 import com.kmp.Triply.domain.ranking.dto.response.RankingEntryResponse;
 import com.kmp.Triply.domain.ranking.dto.response.RankingResponse;
@@ -29,26 +27,24 @@ import java.util.stream.IntStream;
 public class RankingServiceImpl implements RankingService {
 
     private final GameRoomRepository gameRoomRepository;
-    private final TeamRepository teamRepository;
     private final CourseRepository courseRepository;
     private final MissionAttemptRepository missionAttemptRepository;
     private final RankingRepository rankingRepository;
 
     @Override
-    public RankingResponse getLiveRankings(Long gameRoomId, RankingMode mode) {
+    public RankingResponse getLiveRankings(Long gameRoomId) {
         GameRoom gameRoom = gameRoomRepository.findById(gameRoomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
         if (gameRoom.getStatus() != GameStatus.RUNNING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
 
-        List<RankingEntryResponse> rankings = switch (mode) {
-            case TEAM -> getLiveTeamRankings(gameRoomId);
-            case PERSONAL -> toPersonalRankings(missionAttemptRepository.findPersonalLiveRankingsByGameRoomId(gameRoomId));
-        };
+        // 방 하나에 팀 하나이므로 방 안에서 겨룰 상대는 멤버끼리뿐이다. 방 vs 방은 코스 랭킹에서 본다.
+        List<RankingEntryResponse> rankings = toPersonalRankings(
+                missionAttemptRepository.findPersonalLiveRankingsByGameRoomId(gameRoomId));
 
         return RankingResponse.of(
-                mode,
+                RankingMode.PERSONAL,
                 gameRoom.getId(),
                 gameRoom.getCourse().getId(),
                 gameRoom.getCourse().getTitle(),
@@ -62,35 +58,17 @@ public class RankingServiceImpl implements RankingService {
                 .orElseThrow(() -> new CustomException(ErrorCode.COURSE_NOT_FOUND));
 
         List<RankingEntryResponse> rankings = switch (mode) {
-            case TEAM -> getCourseTeamRankings(courseId);
+            case ROOM -> getCourseRoomRankings(courseId);
             case PERSONAL -> getCoursePersonalRankings(courseId);
         };
 
         return RankingResponse.of(mode, null, course.getId(), course.getTitle(), rankings);
     }
 
-    private List<RankingEntryResponse> getLiveTeamRankings(Long gameRoomId) {
-        List<Object[]> rows = teamRepository.findTeamRankingRowsByGameRoomId(gameRoomId);
-        return IntStream.range(0, rows.size())
-                .mapToObj(index -> {
-                    Team team = (Team) rows.get(index)[0];
-                    return RankingEntryResponse.of(
-                            index + 1,
-                            team.getId(),
-                            team.getTeamName(),
-                            ((Number) rows.get(index)[1]).intValue(),
-                            null,
-                            ((Number) rows.get(index)[2]).shortValue(),
-                            ((Number) rows.get(index)[3]).shortValue()
-                    );
-                })
-                .toList();
-    }
-
-    private List<RankingEntryResponse> getCourseTeamRankings(Long courseId) {
+    private List<RankingEntryResponse> getCourseRoomRankings(Long courseId) {
         List<Ranking> storedRankings = rankingRepository.findAllByGameRoomCourseIdAndRankingTypeOrderByFinalScoreDescRankAsc(
                 courseId,
-                RankingType.TEAM
+                RankingType.ROOM
         );
         return toStoredRankings(storedRankings);
     }
@@ -107,10 +85,10 @@ public class RankingServiceImpl implements RankingService {
         return IntStream.range(0, rankings.size())
                 .mapToObj(index -> {
                     Ranking ranking = rankings.get(index);
-                    Long targetId = ranking.getRankingType() == RankingType.TEAM
-                            ? ranking.getTeam().getId()
+                    Long targetId = ranking.getRankingType() == RankingType.ROOM
+                            ? ranking.getTeam().getGameRoom().getId()
                             : ranking.getUser().getId();
-                    String targetName = ranking.getRankingType() == RankingType.TEAM
+                    String targetName = ranking.getRankingType() == RankingType.ROOM
                             ? ranking.getTeam().getTeamName()
                             : ranking.getUser().getNickname();
                     return RankingEntryResponse.of(

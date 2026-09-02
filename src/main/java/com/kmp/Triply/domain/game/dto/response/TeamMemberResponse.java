@@ -1,7 +1,6 @@
 package com.kmp.Triply.domain.game.dto.response;
 
 import com.kmp.Triply.domain.game.entity.TeamMember;
-import com.kmp.Triply.domain.game.entity.TeamRole;
 import com.kmp.Triply.domain.user.entity.UserTravelProfile;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,7 +16,6 @@ public class TeamMemberResponse {
     private Long userId;
     private String nickname;
     private String profileImg;
-    private TeamRole role;
     private List<String> personaTags;
     private LocalDateTime joinedAt;
 
@@ -26,7 +24,6 @@ public class TeamMemberResponse {
                 .userId(teamMember.getUser().getId())
                 .nickname(teamMember.getUser().getNickname())
                 .profileImg(teamMember.getUser().getProfileImg())
-                .role(teamMember.getRole())
                 .personaTags(toPersonaTags(travelProfile))
                 .joinedAt(teamMember.getJoinedAt())
                 .build();
