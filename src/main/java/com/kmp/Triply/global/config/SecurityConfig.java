@@ -9,6 +9,7 @@ import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -51,6 +52,10 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 ).permitAll()
+                // 여행 코스 둘러보기는 로그인 없이 열어 둔다. 가입 전에 뭘 할 수 있는지
+                // 봐야 가입할 이유가 생긴다. 읽기(GET)만이고 생성·삭제·스팟·미션 등록은 그대로 인증이 필요하다.
+                // 코스 상세의 미션 응답에는 정답이 담기지 않으므로(MissionResponse) 정답이 새지 않는다.
+                .requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/*").permitAll()
                 .anyRequest().authenticated())
             // /api/** 는 브라우저가 아닌 클라이언트가 부르므로 302 /login 대신 401 을 준다.
             // 리다이렉트로 응답하면 클라이언트는 인증 실패를 성공으로 착각한다.

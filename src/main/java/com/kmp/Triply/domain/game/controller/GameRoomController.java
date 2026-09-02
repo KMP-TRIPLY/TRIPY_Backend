@@ -37,7 +37,9 @@ public class GameRoomController {
 
     private final GameRoomService gameRoomService;
 
-    @Operation(summary = "게임방 생성", description = "코스를 선택해 새 게임방을 생성하고 생성자를 방장으로 참여시킵니다.")
+    @Operation(summary = "게임방 생성",
+            description = "코스를 선택해 새 게임방을 생성하고 생성자를 방장으로 참여시킵니다. "
+                    + "maxMembers=1 이면 혼자 하는 방(SOLO)이 되어 다른 사람이 들어올 수 없습니다.")
     @PostMapping("/game-rooms")
     public ResponseEntity<ApiResponse<GameRoomJoinResponse>> createRoom(
             Authentication authentication,

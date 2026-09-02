@@ -73,7 +73,9 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .host(host)
                 .roomCode(generateRoomCode())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .gameMode(GameMode.TEAM)
+                // 정원이 1 이면 혼자 하는 방이다. 모드를 따로 받지 않고 정원에서 유도한다 —
+                // 둘이 어긋나면(정원 1 인데 TEAM) 어느 쪽이 맞는지 알 수 없다.
+                .gameMode(request.getMaxMembers() == 1 ? GameMode.SOLO : GameMode.TEAM)
                 .maxMembers(request.getMaxMembers())
                 .build());
 
