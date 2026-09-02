@@ -38,7 +38,14 @@ dependencies {
 		exclude group: 'software.amazon.awssdk', module: 'netty-nio-client'
 	}
 	implementation 'software.amazon.awssdk:apache-client'
-	implementation 'com.anthropic:anthropic-java:2.34.0'
+	// springdoc 은 swagger-annotations-jakarta(2.2.47) 를 쓰는데 anthropic-java 가
+	// non-jakarta swagger-annotations(2.2.31) 를 끌고 온다. 두 jar 이 같은 패키지에
+	// 같은 클래스명을 담고 있어 구버전이 클래스패스에서 이기면 /v3/api-docs 가
+	// NoSuchMethodError: Schema.$dynamicRef() 로 500 이 된다.
+	// 제외해도 클래스 자체는 jakarta 쪽에 그대로 있어 anthropic-java 도 정상 동작한다.
+	implementation('com.anthropic:anthropic-java:2.34.0') {
+		exclude group: 'io.swagger.core.v3', module: 'swagger-annotations'
+	}
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
