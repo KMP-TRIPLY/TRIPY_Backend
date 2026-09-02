@@ -18,8 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -60,22 +63,47 @@ public class MainServiceImpl implements MainService {
 
     private List<DashboardResponse.SpotPreview> fetchSpotPreviews() {
         try {
-            List<RecommendationResponse> spots = new ArrayList<>(tourismApiService.getChungcheongRecommendations());
-            Collections.shuffle(spots);
-            return spots.stream()
-                    .limit(DASHBOARD_SPOT_PREVIEW_COUNT)
-                    .map(s -> DashboardResponse.SpotPreview.builder()
-                            .contentId(s.getContentId())
-                            .title(s.getTitle())
-                            .signguNm(s.getSignguNm())
-                            .categoryMiddle(s.getCategoryMiddle())
-                            .rank(s.getRank())
-                            .build())
-                    .toList();
+            return pickPreviews(tourismApiService.getChungcheongRecommendations());
         } catch (Exception e) {
             log.warn("대시보드 추천 명소 조회 실패, 빈 목록으로 대체", e);
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 인기 순위대로 고른다. 매번 무작위로 섞으면 새로고침마다 결과가 바뀌고,
+     * 응답에 rank 를 내려주면서 순위를 무시하는 셈이 된다.
+     *
+     * <p>hubRank 는 시군구 안에서의 순위라 1 위가 시군구마다 하나씩 있다.
+     * 그래서 시군구가 겹치지 않게 골라야 한 도시 명소만 세 개 나오지 않는다.
+     */
+    static List<DashboardResponse.SpotPreview> pickPreviews(List<RecommendationResponse> spots) {
+        List<RecommendationResponse> byPopularity = new ArrayList<>(spots);
+        byPopularity.sort(Comparator.comparingInt(MainServiceImpl::popularity));
+
+        List<DashboardResponse.SpotPreview> previews = new ArrayList<>();
+        Set<String> pickedSigungus = new HashSet<>();
+        for (RecommendationResponse spot : byPopularity) {
+            if (!pickedSigungus.add(spot.getSignguCd())) {
+                continue;
+            }
+            previews.add(DashboardResponse.SpotPreview.builder()
+                    .contentId(spot.getContentId())
+                    .title(spot.getTitle())
+                    .signguNm(spot.getSignguNm())
+                    .categoryMiddle(spot.getCategoryMiddle())
+                    .rank(spot.getRank())
+                    .build());
+            if (previews.size() == DASHBOARD_SPOT_PREVIEW_COUNT) {
+                break;
+            }
+        }
+        return previews;
+    }
+
+    /** hubRank 는 1 이 가장 인기다. 0 은 값이 없는 것이므로 뒤로 보낸다. */
+    private static int popularity(RecommendationResponse spot) {
+        return spot.getRank() <= 0 ? Integer.MAX_VALUE : spot.getRank();
     }
 
     @Override
