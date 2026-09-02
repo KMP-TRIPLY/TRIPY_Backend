@@ -39,4 +39,33 @@ class SpotNameMatchTest {
         assertThat(TourismApiServiceImpl.normalizeSpotName(null)).isEmpty();
         assertThat(TourismApiServiceImpl.normalizeSpotName("")).isEmpty();
     }
+
+    // ---- 접두 일치 ----
+    // 관광정보에 스팟 이름 그대로 없는 경우가 많다. 실측 12곳 중 완전일치는 2곳뿐이었고
+    // 접두를 허용해 4곳이 됐다.
+
+    @Test
+    void 관광정보_이름이_스팟_이름으로_시작하면_같은_곳으로_본다() {
+        assertThat(TourismApiServiceImpl.isPrefixMatch("청남대", "청남대가을축제")).isTrue();
+        assertThat(TourismApiServiceImpl.isPrefixMatch("대전역", "대전역동광장")).isTrue();
+    }
+
+    @Test
+    void 이름_안에_들어만_있는_것은_받지_않는다() {
+        // 이 둘을 받으면 게스트하우스·화장품가게 사진이 사적에 붙는다
+        assertThat(TourismApiServiceImpl.isPrefixMatch("공산성", "공주공산성게스트하우스")).isFalse();
+        assertThat(TourismApiServiceImpl.isPrefixMatch("대전역", "올리브영대전역점")).isFalse();
+    }
+
+    @Test
+    void 짧은_이름은_접두로_보지_않는다() {
+        // 두 글자는 아무 데나 걸린다
+        assertThat(TourismApiServiceImpl.isPrefixMatch("공주", "공주산성시장")).isFalse();
+        assertThat(TourismApiServiceImpl.isPrefixMatch("", "무엇이든")).isFalse();
+    }
+
+    @Test
+    void 세_글자_이상이면_접두로_본다() {
+        assertThat(TourismApiServiceImpl.isPrefixMatch("고마나루", "고마나루1999")).isTrue();
+    }
 }

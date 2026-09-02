@@ -56,6 +56,10 @@ public class TourismApiServiceImpl implements TourismApiService {
     // 사진 매칭용 조회 범위. 좌표가 조금 어긋나도 잡히게 넉넉히 두고, 이름으로 걸러낸다.
     private static final int IMAGE_SEARCH_RADIUS_METERS = 2000;
     private static final int IMAGE_SEARCH_ROWS = 30;
+    // 목록 한 요청에 새로 찾을 사진 개수. 직렬 호출이라 응답 시간과 일일 한도를 함께 막는다.
+    private static final int IMAGE_LOOKUP_PER_REQUEST = 5;
+    // 접두 일치를 허용할 최소 이름 길이. 짧으면 아무 데나 걸린다.
+    private static final int MIN_PREFIX_MATCH_LENGTH = 3;
 
     // 데이터랩 통계 후행 공개 대비. 이 개월 수까지 거슬러 올라가며 데이터가 있는 달을 찾는다.
     private static final int BASE_YM_LOOKBACK_MONTHS = 4;
@@ -119,10 +123,11 @@ public class TourismApiServiceImpl implements TourismApiService {
      * 좌표 주변에서 이름이 같은 곳의 사진을 찾는다.
      *
      * <p>거리순 1 위를 쓰면 안 된다. 국립공주박물관 좌표에서 222m 지점이 선화당이라
-     * 다른 장소 사진이 붙는다. 이름이 정확히 일치하는 것만 쓴다.
+     * 다른 장소 사진이 붙는다. 이름으로 걸러내는 것이 유일한 방어선이다.
      *
-     * <p>ponytail: 이름 완전일치만 본다. 못 찾으면 사진 없이 두는데, 적중률이 낮으면
-     * 유사도 매칭으로 넓히면 된다 - 다만 그때는 오매칭(다른 장소 사진)이 늘어난다.
+     * <p>완전일치를 먼저 보고, 없으면 접두 일치를 쓴다. 실측(rank 1~3 스팟 12곳)에서
+     * 완전일치만 2곳, 접두까지 허용하면 4곳이 붙었다. 나머지는 역·백화점·시장처럼
+     * 관광정보에 관광지로 없는 곳이라 사진이 없는 게 맞다.
      */
     private String searchImageByName(String name, BigDecimal lng, BigDecimal lat) {
         if (name == null || lng == null || lat == null) {
@@ -131,17 +136,35 @@ public class TourismApiServiceImpl implements TourismApiService {
 
         String rawJson = callLocationBasedList(lng, lat, IMAGE_SEARCH_RADIUS_METERS, null, 1, IMAGE_SEARCH_ROWS);
         String wanted = normalizeSpotName(name);
+        String prefixMatch = null;  // 응답이 거리순이라 첫 접두 일치가 가장 가깝다
 
         for (JsonNode item : parseItemNodes(rawJson)) {
             String image = item.path("firstimage").asText("");
             if (image.isBlank()) {
                 continue;
             }
-            if (wanted.equals(normalizeSpotName(item.path("title").asText("")))) {
+            String title = normalizeSpotName(item.path("title").asText(""));
+            if (wanted.equals(title)) {
                 return image;
             }
+            if (prefixMatch == null && isPrefixMatch(wanted, title)) {
+                prefixMatch = image;
+            }
         }
-        return null;
+        return prefixMatch;
+    }
+
+    /**
+     * 관광정보 이름이 스팟 이름으로 시작하면 같은 곳으로 본다.
+     * ("청남대" → "청남대 가을축제", "대전역" → "대전역 동광장")
+     *
+     * <p>포함 관계까지 넓히면 안 된다. "공산성" 이 "공주공산성게스트하우스" 에,
+     * "대전역" 이 "올리브영 대전역점" 에 붙어 다른 장소 사진이 나간다.
+     * 접두로 제한하면 그런 경우가 걸러진다. 짧은 이름은 아무 데나 걸리므로
+     * {@value #MIN_PREFIX_MATCH_LENGTH} 자 이상만 본다.
+     */
+    static boolean isPrefixMatch(String wanted, String title) {
+        return wanted.length() >= MIN_PREFIX_MATCH_LENGTH && title.startsWith(wanted);
     }
 
     /** 괄호 안 부가설명("선화당(공주)")과 공백을 떼고 비교한다. */
@@ -386,7 +409,50 @@ public class TourismApiServiceImpl implements TourismApiService {
         List<RecommendationResponse> all = getChungcheongRecommendations();
         List<RecommendationResponse> filtered = areaCd == null ? all
                 : all.stream().filter(r -> areaCd.equals(r.getAreaCd())).toList();
-        return new PageResponse<>(filtered, page, size);
+
+        PageResponse<RecommendationResponse> paged = new PageResponse<>(filtered, page, size);
+        fillImageUrls(paged.getContent());
+        return paged;
+    }
+
+    /**
+     * 이 페이지에 담긴 곳들의 사진을 채운다.
+     *
+     * <p>이미 {@code tourism_spots.thumbnail_url} 에 있는 값은 외부 호출 없이 그대로 쓴다.
+     * 없는 것만 국문 관광정보에서 찾고, 찾으면 DB 에 저장해 다음부터는 공짜로 읽는다.
+     *
+     * <p>ponytail: 한 요청에 새로 찾는 개수를 {@value #IMAGE_LOOKUP_PER_REQUEST} 개로 막는다.
+     * 한 페이지(20 개)를 전부 직렬로 부르면 응답이 몇 초씩 걸리고 일일 호출 한도도 빨리 닳는다.
+     * 목록을 넘겨 볼수록 채워지고 채운 값은 남으므로 시간이 지나면 다 채워진다.
+     * 한 번에 전부 채우려면 배치 워밍업 작업이 필요하다.
+     */
+    private void fillImageUrls(List<RecommendationResponse> spots) {
+        int lookupBudget = IMAGE_LOOKUP_PER_REQUEST;
+
+        for (RecommendationResponse spot : spots) {
+            TourismSpot stored = tourismSpotRepository.findByOpenApiContentId(spot.getContentId()).orElse(null);
+            if (stored == null) {
+                continue;
+            }
+            if (StringUtils.hasText(stored.getThumbnailUrl())) {
+                spot.applyImageUrl(stored.getThumbnailUrl());
+                continue;
+            }
+            if (lookupBudget <= 0) {
+                continue;
+            }
+
+            lookupBudget--;
+            try {
+                String image = searchImageByName(stored.getName(), stored.getLng(), stored.getLat());
+                if (StringUtils.hasText(image)) {
+                    stored.updateThumbnailUrl(image);
+                    spot.applyImageUrl(image);
+                }
+            } catch (Exception e) {
+                log.warn("스팟 사진 조회 실패. contentId={}, name={}", spot.getContentId(), stored.getName(), e);
+            }
+        }
     }
 
     @Override
