@@ -191,10 +191,23 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 ALTER TABLE teams DROP COLUMN IF EXISTS leader_user_id;
 ALTER TABLE team_members DROP COLUMN IF EXISTS role;
 ALTER TABLE game_rooms RENAME COLUMN max_teams TO max_members;
+
+-- Hibernate 가 enum 컬럼에 만들어둔 CHECK 제약이 'ROOM' 을 거부하므로
+-- 제약을 먼저 갈아야 한다
+ALTER TABLE rankings DROP CONSTRAINT IF EXISTS rankings_ranking_type_check;
 UPDATE rankings SET ranking_type = 'ROOM' WHERE ranking_type = 'TEAM';
+ALTER TABLE rankings ADD CONSTRAINT rankings_ranking_type_check
+  CHECK (ranking_type IN ('ROOM', 'PERSONAL'));
 ```
 
 컬럼을 지우지 않으면 `NOT NULL` 위반으로 방 생성이 전부 실패한다.
+
+한 방에 팀이 둘 이상인 기존 데이터가 있으면 첫 팀(가장 작은 id)만 쓰이고
+나머지 팀의 멤버는 조회에서 빠진다. 적용 전 아래로 확인할 것:
+
+```sql
+SELECT game_room_id, count(*) FROM teams GROUP BY game_room_id HAVING count(*) > 1;
+```
 
 ### 클라이언트 영향
 

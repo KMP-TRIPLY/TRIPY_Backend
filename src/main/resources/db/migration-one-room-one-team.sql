@@ -19,7 +19,13 @@ ALTER TABLE game_rooms RENAME COLUMN max_teams TO max_members;
 COMMIT;
 
 -- 4) 방 안 순위 제거에 따른 랭킹 유형 이름 변경 (TEAM -> ROOM).
---    rankings.ranking_type 은 enum 문자열로 저장되므로 값도 같이 바꿔야 한다.
+--    rankings.ranking_type 은 enum 문자열로 저장된다. Hibernate 가 이 컬럼에
+--    CHECK (ranking_type IN ('TEAM','PERSONAL')) 제약을 만들어 두므로
+--    제약을 새 값으로 바꾼 뒤에 데이터를 갱신해야 한다.
+--    (제약을 그대로 두고 UPDATE 하면 rankings_ranking_type_check 위반으로 실패한다)
 BEGIN;
+ALTER TABLE rankings DROP CONSTRAINT IF EXISTS rankings_ranking_type_check;
 UPDATE rankings SET ranking_type = 'ROOM' WHERE ranking_type = 'TEAM';
+ALTER TABLE rankings ADD CONSTRAINT rankings_ranking_type_check
+  CHECK (ranking_type IN ('ROOM', 'PERSONAL'));
 COMMIT;
