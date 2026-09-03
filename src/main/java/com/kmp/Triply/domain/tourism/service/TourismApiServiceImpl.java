@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -61,6 +62,12 @@ public class TourismApiServiceImpl implements TourismApiService {
     // 접두 일치를 허용할 최소 이름 길이. 짧으면 아무 데나 걸린다.
     private static final int MIN_PREFIX_MATCH_LENGTH = 3;
 
+    // 명소 추천에서 뺄 것들. 자세한 근거는 isRecommendable() 참고.
+    private static final Set<String> EXCLUDED_CATEGORIES = Set.of("숙박");
+    private static final List<String> EXCLUDED_NAME_KEYWORDS =
+            List.of("백화점", "아울렛", "면세점", "도매시장", "공판장");
+    private static final String STATION_NAME_SUFFIX = "역";
+
     // 데이터랩 통계 후행 공개 대비. 이 개월 수까지 거슬러 올라가며 데이터가 있는 달을 찾는다.
     private static final int BASE_YM_LOOKBACK_MONTHS = 4;
 
@@ -86,9 +93,39 @@ public class TourismApiServiceImpl implements TourismApiService {
     public List<RecommendationResponse> getChungcheongRecommendations() {
         List<RecommendationResponse> results = new ArrayList<>();
         for (SigunguKey key : CHUNGCHEONG_SIGUNGUS) {
-            results.addAll(fetchBySigungu(key));
+            // 캐시와 tourism_spots 에는 전부 담고, 추천 목록에서만 명소가 아닌 곳을 뺀다.
+            // 상세 조회(/api/tourism/spots/{contentId})는 걸러진 것도 볼 수 있어야 한다.
+            fetchBySigungu(key).stream()
+                    .filter(TourismApiServiceImpl::isRecommendable)
+                    .forEach(results::add);
         }
         return results;
+    }
+
+    /**
+     * 명소 추천에 넣을 만한 곳인지.
+     *
+     * <p>데이터랩 순위는 관광지 순위가 아니라 <b>방문자 수 순위</b>다. 그래서 호텔·모텔과
+     * 역·백화점이 시군구 1위로 올라오고, 추천 명소 자리에 "대전역"·"롯데백화점" 이 뜬다.
+     *
+     * <p>분류로 걸러지는 것은 숙박뿐이다. 역은 청남대와 같은 '기타관광' 이고
+     * 백화점은 재래시장과 같은 '쇼핑' 이라, 분류만으로는 갈라지지 않아 이름도 본다.
+     *
+     * <p>ponytail: 단순 문자열 규칙이다. 운영 1004 건에 걸어보니 숙박 333 · 역 18 ·
+     * 백화점류 12 가 빠지고 637 건이 남았으며 오탐은 없었다. 새로운 형태가 보이면
+     * {@link #EXCLUDED_NAME_KEYWORDS} 에 추가하면 된다.
+     */
+    static boolean isRecommendable(RecommendationResponse spot) {
+        String category = spot.getCategoryMiddle();
+        if (category != null && EXCLUDED_CATEGORIES.contains(category)) {
+            return false;
+        }
+
+        String name = spot.getTitle() == null ? "" : spot.getTitle();
+        if (name.endsWith(STATION_NAME_SUFFIX)) {
+            return false;
+        }
+        return EXCLUDED_NAME_KEYWORDS.stream().noneMatch(name::contains);
     }
 
     /**
