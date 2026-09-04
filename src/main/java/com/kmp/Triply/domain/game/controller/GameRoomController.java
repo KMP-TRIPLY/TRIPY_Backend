@@ -41,7 +41,7 @@ public class GameRoomController {
 
     @Operation(summary = "게임방 생성",
             description = "코스를 선택해 새 게임방을 생성하고 생성자를 방장으로 참여시킵니다. "
-                    + "password(숫자 4~6자리)를 넣으면 아는 사람만 참여할 수 있고, 비우면 목록에서 누구나 들어옵니다. "
+                    + "password(숫자 5자리)를 넣으면 아는 사람만 참여할 수 있고, 비우면 누구나 들어옵니다. "
                     + "maxMembers=1 이면 혼자 하는 방(SOLO)이 되어 다른 사람이 들어올 수 없습니다.")
     @PostMapping("/game-rooms")
     public ResponseEntity<ApiResponse<GameRoomJoinResponse>> createRoom(
@@ -54,14 +54,14 @@ public class GameRoomController {
 
     @Operation(summary = "대기 중인 게임방 목록",
             description = "참여할 수 있는 방 목록입니다. 각 항목의 roomId 로 참여합니다. "
-                    + "참여에는 비밀번호(숫자 5자리)가 필요하고, full=true 면 정원이 차서 들어갈 수 없습니다.")
+                    + "locked=true 면 비밀번호(숫자 5자리)가 필요하고, full=true 면 정원이 차서 들어갈 수 없습니다.")
     @GetMapping("/game-rooms")
     public ResponseEntity<ApiResponse<List<GameRoomSummaryResponse>>> getWaitingRooms() {
         return ResponseEntity.ok(ApiResponse.ok(gameRoomService.getWaitingRooms()));
     }
 
     @Operation(summary = "게임방 참여",
-            description = "목록이나 초대 링크로 고른 방에 참여합니다. 비밀번호(숫자 5자리)가 필요합니다. "
+            description = "목록이나 초대 링크로 고른 방에 참여합니다. locked=true 인 방은 password(숫자 5자리)를 함께 보내야 합니다. "
                     + "이미 참여한 방이면 원래 자리로 재입장합니다.")
     @PostMapping("/game-rooms/{roomId}/join")
     public ResponseEntity<ApiResponse<GameRoomJoinResponse>> joinRoom(

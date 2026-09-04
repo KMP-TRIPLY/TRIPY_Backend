@@ -75,7 +75,9 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .course(course)
                 .host(host)
                 .roomCode(generateRoomCode())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                // 비밀번호는 선택이다. 넣으면 아는 사람만 들어올 수 있고, 비우면 누구나 들어온다.
+                .passwordHash(StringUtils.hasText(request.getPassword())
+                        ? passwordEncoder.encode(request.getPassword()) : null)
                 // 정원이 1 이면 혼자 하는 방이다. 모드를 따로 받지 않고 정원에서 유도한다 —
                 // 둘이 어긋나면(정원 1 인데 TEAM) 어느 쪽이 맞는지 알 수 없다.
                 .gameMode(request.getMaxMembers() == 1 ? GameMode.SOLO : GameMode.TEAM)
@@ -355,16 +357,15 @@ public class GameRoomServiceImpl implements GameRoomService {
     }
 
     /**
-     * 참여에는 비밀번호가 필수다. 모든 방이 잠긴 방이고, 초대 링크를 받은 사람이라도
-     * 비밀번호를 알아야 들어온다.
-     *
-     * <p>비밀번호가 없는 옛 방(컬럼이 null)은 아무도 들어올 수 없다 —
-     * 통과시키면 잠긴 방인 줄 알고 만든 방이 공개 방이 된다.
+     * 잠긴 방에만 비밀번호를 요구한다. 비밀번호 없이 만든 방은 누구나 들어온다.
+     * 초대 링크를 받았더라도 잠긴 방이면 비밀번호를 알아야 한다.
      */
     private void validatePassword(GameRoom gameRoom, GameRoomJoinRequest request) {
+        if (!gameRoom.isLocked()) {
+            return;
+        }
         String password = request == null ? null : request.getPassword();
         if (!StringUtils.hasText(password)
-                || gameRoom.getPasswordHash() == null
                 || !passwordEncoder.matches(password, gameRoom.getPasswordHash())) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_PASSWORD);
         }

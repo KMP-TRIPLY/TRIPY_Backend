@@ -75,6 +75,11 @@ public class GameRoom {
         this.maxMembers = maxMembers;
     }
 
+    /** 비밀번호가 걸린 방인지. 목록에 자물쇠를 보여주고, 참여 때 비밀번호를 받을지 정한다. */
+    public boolean isLocked() {
+        return passwordHash != null;
+    }
+
     public void changeCourse(Course course) {
         this.course = course;
     }

@@ -60,7 +60,7 @@ GET /api/courses · /api/courses/{courseId} · /api/courses/regions
 ```
 
 ### 02. 방을 만든다
-만든 사람이 **방장**이 된다. 비밀번호는 선택이다 — 넣으면 아는 사람만 들어올 수 있고, 비우면 목록에서 누구나 들어온다.
+만든 사람이 **방장**이 된다. 비밀번호는 선택이다 — 넣으면(숫자 5자리) 아는 사람만 들어올 수 있고, 비우면 누구나 들어온다.
 정원을 1로 두면 혼자 하는 방(`SOLO`)이 되어 아무도 들어올 수 없다.
 ```
 POST /api/game-rooms   { courseId, roomName, maxMembers, password? }

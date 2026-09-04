@@ -35,6 +35,9 @@ public class GameRoomSummaryResponse {
     @Schema(description = "정원", example = "6")
     private short maxMembers;
 
+    @Schema(description = "비밀번호가 걸린 방인지. true 면 참여할 때 비밀번호가 필요하다", example = "true")
+    private boolean locked;
+
     @Schema(description = "정원이 찼는지. true 면 참여할 수 없다", example = "false")
     private boolean full;
 
@@ -50,6 +53,7 @@ public class GameRoomSummaryResponse {
                 .gameMode(room.getGameMode())
                 .memberCount(memberCount)
                 .maxMembers(room.getMaxMembers())
+                .locked(room.isLocked())
                 .full(memberCount >= room.getMaxMembers())
                 .createdAt(room.getCreatedAt())
                 .build();
