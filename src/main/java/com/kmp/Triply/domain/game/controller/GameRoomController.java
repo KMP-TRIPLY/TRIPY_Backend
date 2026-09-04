@@ -49,7 +49,7 @@ public class GameRoomController {
                 .body(ApiResponse.ok(gameRoomService.createRoom(userId, request)));
     }
 
-    @Operation(summary = "게임방 참여", description = "방 코드와 비밀번호로 대기 중인 게임방에 참여합니다. 이미 참여한 방이면 원래 자리로 재입장합니다.")
+    @Operation(summary = "게임방 참여", description = "방 코드로 대기 중인 게임방에 참여합니다. 이미 참여한 방이면 원래 자리로 재입장합니다.")
     @PostMapping("/game-rooms/join")
     public ResponseEntity<ApiResponse<GameRoomJoinResponse>> joinRoom(
             Authentication authentication,

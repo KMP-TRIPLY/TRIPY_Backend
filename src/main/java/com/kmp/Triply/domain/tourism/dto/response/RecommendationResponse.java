@@ -45,4 +45,14 @@ public class RecommendationResponse {
 
     @Schema(description = "중심관광지 순위 (TourAPI hubRank)", example = "1")
     private int rank;               // hubRank
+
+    @Schema(description = "대표 사진 URL. 통계 API 는 사진을 주지 않아 국문 관광정보에서 찾아 채운다. "
+            + "이름이 일치하는 곳을 못 찾으면 null",
+            example = "http://tong.visitkorea.or.kr/cms/resource/33/3534933_image2_1.jpg")
+    private String imageUrl;
+
+    /** 사진은 통계 API 응답에 없어 뒤늦게 채워진다. */
+    public void applyImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }
