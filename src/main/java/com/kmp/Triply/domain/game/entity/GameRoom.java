@@ -37,6 +37,13 @@ public class GameRoom {
     @Column(name = "room_code", nullable = false, unique = true, length = 8)
     private String roomCode;
 
+    /**
+     * 비밀번호 해시. null 이면 잠기지 않은 방이라 목록에서 바로 들어올 수 있다.
+     * 걸어두면 아는 사람만 참여할 수 있다.
+     */
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 15)
     private GameStatus status = GameStatus.WAITING;
@@ -59,16 +66,26 @@ public class GameRoom {
     private LocalDateTime createdAt;
 
     @Builder
-    private GameRoom(Course course, User host, String roomCode, GameMode gameMode, short maxMembers) {
+    private GameRoom(Course course, User host, String roomCode, String passwordHash, GameMode gameMode, short maxMembers) {
         this.course = course;
         this.host = host;
         this.roomCode = roomCode;
+        this.passwordHash = passwordHash;
         this.gameMode = gameMode;
         this.maxMembers = maxMembers;
     }
 
     public void changeCourse(Course course) {
         this.course = course;
+    }
+
+    /**
+     * 정원 변경. 모드는 정원에서 유도하므로 함께 갱신한다 —
+     * 따로 두면 "정원 1 인데 TEAM" 처럼 어긋난 상태가 생긴다.
+     */
+    public void changeMaxMembers(short maxMembers) {
+        this.maxMembers = maxMembers;
+        this.gameMode = maxMembers == 1 ? GameMode.SOLO : GameMode.TEAM;
     }
 
     public void start() {

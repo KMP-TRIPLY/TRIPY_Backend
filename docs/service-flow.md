@@ -17,7 +17,7 @@ TRIPY 는 성격이 다른 두 흐름을 담고 있다. 하나는 여행을 계�
 ─────────────────────                    ─────────────────────
 소셜 로그인 (카카오/네이버/구글)            코스 고르기 (로그인 없이도 조회)
       ↓                                        ↓
-여행 성향 프로필 입력                       게임방 만들기 (공개)
+여행 성향 프로필 입력                       게임방 만들기 (비번 선택)
       ↓                                        ↓
 여행(Trip) 만들기 · 제목 · 기간             참여 / 시작 (방장이 시작)
       ↓                                        ↓
@@ -60,18 +60,19 @@ GET /api/courses · /api/courses/{courseId} · /api/courses/regions
 ```
 
 ### 02. 방을 만든다
-만든 사람이 **방장**이 된다. 비밀번호도 방 코드도 쓰지 않는다 — 대기 중인 방은 목록에 공개된다.
+만든 사람이 **방장**이 된다. 비밀번호는 선택이다 — 넣으면 아는 사람만 들어올 수 있고, 비우면 목록에서 누구나 들어온다.
 정원을 1로 두면 혼자 하는 방(`SOLO`)이 되어 아무도 들어올 수 없다.
 ```
-POST /api/game-rooms   { courseId, roomName, maxMembers }
+POST /api/game-rooms   { courseId, roomName, maxMembers, password? }
 ```
 
 ### 03. 사람들이 들어온다
-목록에서 방을 골라 `roomId` 로 참여한다. **팀을 고르지 않는다** — 한 방이 한 팀이다.
+목록에서 방을 골라 `roomId` 로 참여한다. 잠긴 방(`locked=true`)이면 비밀번호를 함께 보낸다.
+**팀을 고르지 않는다** — 한 방이 한 팀이다.
 이미 이 방 멤버라면 새로 넣지 않고 원래 자리로 되돌린다(재입장).
 ```
 GET  /api/game-rooms              (대기 중인 방 목록)
-POST /api/game-rooms/{roomId}/join (본문 없음)
+POST /api/game-rooms/{roomId}/join { password? }
 ```
 
 ### 04. 방장이 시작한다

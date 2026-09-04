@@ -48,6 +48,8 @@ public enum ErrorCode {
     TEAM_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "팀 멤버를 찾을 수 없습니다."),
     INVALID_GAME_ROOM_STATUS(HttpStatus.BAD_REQUEST, "현재 게임 방 상태에서 수행할 수 없는 요청입니다."),
     ROOM_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "게임 방 정원이 초과되었습니다."),
+    ROOM_CAPACITY_BELOW_MEMBERS(HttpStatus.CONFLICT, "정원을 현재 인원보다 작게 줄일 수 없습니다."),
+    INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
     LEFT_ROOM_CANNOT_REJOIN(HttpStatus.CONFLICT, "하차한 게임 방에는 다시 참여할 수 없습니다."),
 
