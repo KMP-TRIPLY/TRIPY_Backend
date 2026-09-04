@@ -5,10 +5,13 @@ import com.kmp.Triply.domain.course.repository.CourseRepository;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
+import com.kmp.Triply.domain.game.dto.request.GameRoomMaxMembersChangeRequest;
+
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.entity.GameMode;
@@ -31,13 +34,14 @@ import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +61,7 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
+    private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Override
@@ -70,6 +75,9 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .course(course)
                 .host(host)
                 .roomCode(generateRoomCode())
+                // 비밀번호는 선택이다. 넣으면 아는 사람만 들어올 수 있고, 비우면 누구나 들어온다.
+                .passwordHash(StringUtils.hasText(request.getPassword())
+                        ? passwordEncoder.encode(request.getPassword()) : null)
                 // 정원이 1 이면 혼자 하는 방이다. 모드를 따로 받지 않고 정원에서 유도한다 —
                 // 둘이 어긋나면(정원 1 인데 TEAM) 어느 쪽이 맞는지 알 수 없다.
                 .gameMode(request.getMaxMembers() == 1 ? GameMode.SOLO : GameMode.TEAM)
@@ -84,19 +92,22 @@ public class GameRoomServiceImpl implements GameRoomService {
 
     @Override
     @Transactional
-    public GameRoomJoinResponse joinRoom(Long userId, GameRoomJoinRequest request) {
+    public GameRoomJoinResponse joinRoom(Long userId, Long roomId, GameRoomJoinRequest request) {
         User user = getUser(userId);
-        GameRoom gameRoom = gameRoomRepository.findByRoomCode(normalizeRoomCode(request.getRoomCode()))
-                .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
-
+        GameRoom gameRoom = getRoom(roomId);
 
         // 이미 이 방의 멤버라면 새로 넣지 않고 원래 팀으로 돌려보낸다.
         // 앱을 껐다 켜거나 네트워크가 끊겨 다시 들어오는 경우가 정상 흐름이므로 실패로 처리하면 안 된다.
         // 진행 중(RUNNING)인 방도 재입장은 허용한다 — 막으면 게임 도중 튕긴 사람이 복귀할 수 없다.
+        //
+        // 재입장에는 비밀번호를 묻지 않는다. 이미 멤버인 것이 곧 통과 증명이고,
+        // 앱이 꺼진 뒤엔 비밀번호를 들고 있지 않을 수 있어 물으면 복귀가 막힌다.
         var existing = teamMemberRepository.findByTeamGameRoomIdAndUserId(gameRoom.getId(), userId);
         if (existing.isPresent()) {
             return rejoinRoom(gameRoom, existing.get());
         }
+
+        validatePassword(gameRoom, request);
 
         // 새로 들어오는 사람만 대기 중인 방으로 제한한다.
         validateWaitingRoom(gameRoom);
@@ -114,6 +125,17 @@ public class GameRoomServiceImpl implements GameRoomService {
         GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, team);
         realtimeNotifier.publish(gameRoom.getId(), "MEMBER_JOINED", "새 멤버가 게임 방에 참여했습니다.", response);
         return response;
+    }
+
+    /** 참여할 방 고르기. 대기 중인 방만 보여준다 — 시작한 방에는 새로 들어갈 수 없다. */
+    @Override
+    public List<GameRoomSummaryResponse> getWaitingRooms() {
+        return gameRoomRepository.findRoomSummariesByStatus(GameStatus.WAITING).stream()
+                .map(row -> GameRoomSummaryResponse.of(
+                        (GameRoom) row[0],
+                        (String) row[1],
+                        ((Number) row[2]).longValue()))
+                .toList();
     }
 
     @Override
@@ -144,6 +166,31 @@ public class GameRoomServiceImpl implements GameRoomService {
         gameRoom.changeCourse(course);
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
         realtimeNotifier.publish(gameRoom.getId(), "COURSE_CHANGED", "게임 방 코스가 변경되었습니다.", response);
+        return response;
+    }
+
+    /**
+     * 준비 중 정원 변경. "한 명 더 온다" 가 흔해서 방을 다시 만들지 않게 열어둔다.
+     * 비밀번호는 바꿀 수 없다 — 이미 초대 링크를 받은 사람들이 못 들어오게 되고
+     * 방장이 다시 다 알려줘야 해서 얻는 것 없이 혼란만 생긴다.
+     */
+    @Override
+    @Transactional
+    public GameRoomResponse changeMaxMembers(Long userId, Long roomId,
+                                             GameRoomMaxMembersChangeRequest request) {
+        GameRoom gameRoom = getRoom(roomId);
+        validateHost(gameRoom, userId);
+        validateWaitingRoom(gameRoom);
+
+        // 이미 들어온 사람을 밀어낼 수는 없으므로 현재 인원 아래로는 못 줄인다.
+        long memberCount = teamMemberRepository.countByTeamGameRoomId(roomId);
+        if (request.getMaxMembers() < memberCount) {
+            throw new CustomException(ErrorCode.ROOM_CAPACITY_BELOW_MEMBERS);
+        }
+
+        gameRoom.changeMaxMembers(request.getMaxMembers());
+        GameRoomResponse response = GameRoomResponse.from(gameRoom);
+        realtimeNotifier.publish(roomId, "ROOM_CAPACITY_CHANGED", "게임 방 정원이 변경되었습니다.", response);
         return response;
     }
 
@@ -309,14 +356,25 @@ public class GameRoomServiceImpl implements GameRoomService {
         }
     }
 
+    /**
+     * 잠긴 방에만 비밀번호를 요구한다. 비밀번호 없이 만든 방은 누구나 들어온다.
+     * 초대 링크를 받았더라도 잠긴 방이면 비밀번호를 알아야 한다.
+     */
+    private void validatePassword(GameRoom gameRoom, GameRoomJoinRequest request) {
+        if (!gameRoom.isLocked()) {
+            return;
+        }
+        String password = request == null ? null : request.getPassword();
+        if (!StringUtils.hasText(password)
+                || !passwordEncoder.matches(password, gameRoom.getPasswordHash())) {
+            throw new CustomException(ErrorCode.INVALID_GAME_ROOM_PASSWORD);
+        }
+    }
+
     private void validateWaitingRoom(GameRoom gameRoom) {
         if (gameRoom.getStatus() != GameStatus.WAITING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
-    }
-
-    private String normalizeRoomCode(String roomCode) {
-        return roomCode.trim().toUpperCase(Locale.ROOT);
     }
 
     private String generateRoomCode() {

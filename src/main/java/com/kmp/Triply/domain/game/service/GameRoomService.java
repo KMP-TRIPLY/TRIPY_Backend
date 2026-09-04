@@ -3,10 +3,13 @@ package com.kmp.Triply.domain.game.service;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
+import com.kmp.Triply.domain.game.dto.request.GameRoomMaxMembersChangeRequest;
+
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 
@@ -16,13 +19,17 @@ public interface GameRoomService {
 
     GameRoomJoinResponse createRoom(Long userId, GameRoomCreateRequest request);
 
-    GameRoomJoinResponse joinRoom(Long userId, GameRoomJoinRequest request);
+    GameRoomJoinResponse joinRoom(Long userId, Long roomId, GameRoomJoinRequest request);
+
+    List<GameRoomSummaryResponse> getWaitingRooms();
 
     GameRoomResponse startRoom(Long userId, GameRoomStartRequest request);
 
     GameRoomResponse endRoom(Long userId, Long roomId);
 
     GameRoomResponse changeCourse(Long userId, Long roomId, GameRoomCourseChangeRequest request);
+
+    GameRoomResponse changeMaxMembers(Long userId, Long roomId, GameRoomMaxMembersChangeRequest request);
 
     TeamLeaveResponse leaveRoom(Long userId, Long roomId, TeamLeaveRequest request);
 

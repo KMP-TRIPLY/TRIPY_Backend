@@ -16,7 +16,6 @@ public class GameRoomResponse {
     private Long courseId;
     private String courseTitle;
     private Long hostUserId;
-    private String roomCode;
     private GameStatus status;
     private GameMode gameMode;
     private short maxMembers;
@@ -30,7 +29,6 @@ public class GameRoomResponse {
                 .courseId(gameRoom.getCourse().getId())
                 .courseTitle(gameRoom.getCourse().getTitle())
                 .hostUserId(gameRoom.getHost().getId())
-                .roomCode(gameRoom.getRoomCode())
                 .status(gameRoom.getStatus())
                 .gameMode(gameRoom.getGameMode())
                 .maxMembers(gameRoom.getMaxMembers())

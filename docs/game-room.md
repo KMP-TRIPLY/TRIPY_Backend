@@ -9,7 +9,7 @@
 ```
 GameRoom (게임방)           ← 사용자가 인식하는 단위
   host_user_id = 방장
-  room_code (6자리)
+  room_code (6자리, 정산 리포트 표시용 - 참여에는 쓰지 않는다)
   course_id (어느 코스를 도는지)
   max_members (정원)
   status: WAITING → RUNNING → FINISHED
@@ -51,26 +51,28 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 ### ① 방 생성 — `POST /api/game-rooms`
 
 ```json
-{ "courseId": 1, "roomName": "공주 원정대", "maxMembers": 6 }
+{ "courseId": 1, "roomName": "공주 원정대", "maxMembers": 6, "password": "12345" }  // password 는 선택
 ```
 
 1. 코스 존재 확인
-2. 방 코드 생성 (중복이면 재추첨, `generateRoomCode`)
-3. 정원이 1 이면 SOLO, 그 밖은 TEAM 으로 모드 지정
-4. 생성자를 방장으로 지정, 동시에 `Team` 1행 + `TeamMember` 1행 생성 (`createTeamWithMember`)
-5. `ROOM_CREATED` 이벤트 발행
+2. 방 코드 생성 (중복이면 재추첨) — 정산 리포트용이고 참여에는 쓰지 않는다
+3. 비밀번호(숫자 5자리)를 넣었으면 해시 저장. 안 넣으면 null = 누구나 들어오는 방
+4. 정원이 1 이면 SOLO, 그 밖은 TEAM 으로 모드 지정
+5. 생성자를 방장으로 지정, 동시에 `Team` 1행 + `TeamMember` 1행 생성 (`createTeamWithMember`)
+6. `ROOM_CREATED` 이벤트 발행
 
-### ② 참여 — `POST /api/game-rooms/join`
+### ② 참여 — `GET /api/game-rooms` 로 목록을 보고 `POST /api/game-rooms/{roomId}/join`
 
 ```json
-{ "roomCode": "AB3D5F" }
+{ "password": "12345" }   // 잠긴 방(locked=true)만. 그 밖은 본문 없이
 ```
 
 `joinRoom` (`GameRoomServiceImpl.java:88`) 의 분기:
 
-1. 방 코드로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
-2. **이미 이 방의 멤버** → `rejoinRoom()` 으로 재입장 처리 (4장 참고)
-3. 신규 참여
+1. roomId 로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
+2. **이미 이 방의 멤버** → `rejoinRoom()` 으로 재입장 처리 (4장 참고). 이때 비밀번호는 묻지 않는다
+3. 잠긴 방이면 비밀번호 확인 → 틀리면 `INVALID_GAME_ROOM_PASSWORD`
+4. 신규 참여
    - `WAITING` 상태인지 확인
    - 정원 확인: `countByTeamGameRoomId >= maxMembers` 면 `ROOM_CAPACITY_EXCEEDED`
    - 방의 유일한 팀에 합류
@@ -129,7 +131,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### 재입장
 
-별도 API가 없다. 참여 API(`/game-rooms/join`)를 다시 호출하면 `rejoinRoom` (`:265`)이 처리한다.
+별도 API가 없다. 참여 API(`POST /game-rooms/{roomId}/join`)를 다시 호출하면 `rejoinRoom` 이 처리한다.
 
 1. `FINISHED` 방이면 거부
 2. **하차 이력이 있으면 거부** (`LEFT_ROOM_CANNOT_REJOIN`)
@@ -187,14 +189,10 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 `src/main/resources/db/` 의 SQL 을 직접 실행해야 한다.
 `ddl-auto: update` 는 컬럼을 삭제하거나 이름을 바꾸지 못한다.
 
-### migration-drop-room-password.sql — 비밀번호 제거
+### 비밀번호 컬럼은 손댈 필요 없다
 
-게임방 비밀번호를 쓰지 않기로 해서 컬럼을 지운다. `password_hash` 가 `NOT NULL` 이라
-**지우기 전에 새 jar 이 뜨면 방 생성이 전부 실패한다.**
-
-```sql
-ALTER TABLE game_rooms DROP COLUMN IF EXISTS password_hash;
-```
+`game_rooms.password_hash` 는 nullable 이라 ddl-auto: update 가 알아서 만든다.
+null 이면 잠기지 않은 방, 값이 있으면 잠긴 방이다.
 
 ### migration-one-room-one-team.sql — 한 방 = 한 팀
 
@@ -225,7 +223,10 @@ SELECT game_room_id, count(*) FROM teams GROUP BY game_room_id HAVING count(*) >
 | 이전 | 이후 |
 |---|---|
 | `POST /game-rooms` `{teamName, maxTeams}` | `{roomName, maxMembers}` |
-| `POST /game-rooms/join` `{teamId, teamName}` | 두 필드 삭제 |
+| `POST /game-rooms/join` `{roomCode, password}` | `POST /game-rooms/{roomId}/join` `{password?}` |
+| (방 찾기 수단 없음) | `GET /game-rooms` 대기 중인 방 목록 추가 (locked·full 포함) |
+| `POST /game-rooms` `{password}` 필수 4~20자 | 선택, 숫자 5자리 |
+| (정원 변경 불가) | `POST /game-rooms/{roomId}/max-members` 추가 |
 | `GET /game-rooms/{roomId}/teams/{teamId}/progress` | `GET /game-rooms/{roomId}/progress` |
 | `GET /teams/{teamId}/members` | `GET /game-rooms/{roomId}/members` |
 | `GET .../missions?teamId=` | 파라미터 삭제 |
