@@ -2,11 +2,11 @@ package com.kmp.Triply.domain.game.controller;
 
 import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
-import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.service.GameRoomService;
@@ -49,13 +49,23 @@ public class GameRoomController {
                 .body(ApiResponse.ok(gameRoomService.createRoom(userId, request)));
     }
 
-    @Operation(summary = "게임방 참여", description = "방 코드로 대기 중인 게임방에 참여합니다. 이미 참여한 방이면 원래 자리로 재입장합니다.")
-    @PostMapping("/game-rooms/join")
+    @Operation(summary = "대기 중인 게임방 목록",
+            description = "참여할 수 있는 방 목록입니다. 각 항목의 roomId 로 참여합니다. "
+                    + "full=true 면 정원이 차서 들어갈 수 없습니다.")
+    @GetMapping("/game-rooms")
+    public ResponseEntity<ApiResponse<List<GameRoomSummaryResponse>>> getWaitingRooms() {
+        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.getWaitingRooms()));
+    }
+
+    @Operation(summary = "게임방 참여",
+            description = "목록에서 고른 방에 참여합니다. 요청 본문은 없습니다. "
+                    + "이미 참여한 방이면 원래 자리로 재입장합니다.")
+    @PostMapping("/game-rooms/{roomId}/join")
     public ResponseEntity<ApiResponse<GameRoomJoinResponse>> joinRoom(
             Authentication authentication,
-            @Valid @RequestBody GameRoomJoinRequest request) {
+            @Parameter(description = "게임방 ID", example = "10") @PathVariable Long roomId) {
         Long userId = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.joinRoom(userId, request)));
+        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.joinRoom(userId, roomId)));
     }
 
     @Operation(summary = "게임 시작", description = "방장이 대기 중인 게임방을 시작 상태로 전환합니다.")

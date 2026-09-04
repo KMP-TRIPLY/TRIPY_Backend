@@ -4,11 +4,12 @@ import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
-import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
+
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
+import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamLeaveResponse;
 import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.entity.GameMode;
@@ -37,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -84,11 +84,9 @@ public class GameRoomServiceImpl implements GameRoomService {
 
     @Override
     @Transactional
-    public GameRoomJoinResponse joinRoom(Long userId, GameRoomJoinRequest request) {
+    public GameRoomJoinResponse joinRoom(Long userId, Long roomId) {
         User user = getUser(userId);
-        GameRoom gameRoom = gameRoomRepository.findByRoomCode(normalizeRoomCode(request.getRoomCode()))
-                .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
-
+        GameRoom gameRoom = getRoom(roomId);
 
         // 이미 이 방의 멤버라면 새로 넣지 않고 원래 팀으로 돌려보낸다.
         // 앱을 껐다 켜거나 네트워크가 끊겨 다시 들어오는 경우가 정상 흐름이므로 실패로 처리하면 안 된다.
@@ -114,6 +112,17 @@ public class GameRoomServiceImpl implements GameRoomService {
         GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, team);
         realtimeNotifier.publish(gameRoom.getId(), "MEMBER_JOINED", "새 멤버가 게임 방에 참여했습니다.", response);
         return response;
+    }
+
+    /** 참여할 방 고르기. 대기 중인 방만 보여준다 — 시작한 방에는 새로 들어갈 수 없다. */
+    @Override
+    public List<GameRoomSummaryResponse> getWaitingRooms() {
+        return gameRoomRepository.findRoomSummariesByStatus(GameStatus.WAITING).stream()
+                .map(row -> GameRoomSummaryResponse.of(
+                        (GameRoom) row[0],
+                        (String) row[1],
+                        ((Number) row[2]).longValue()))
+                .toList();
     }
 
     @Override
@@ -313,10 +322,6 @@ public class GameRoomServiceImpl implements GameRoomService {
         if (gameRoom.getStatus() != GameStatus.WAITING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
-    }
-
-    private String normalizeRoomCode(String roomCode) {
-        return roomCode.trim().toUpperCase(Locale.ROOT);
     }
 
     private String generateRoomCode() {

@@ -9,7 +9,7 @@
 ```
 GameRoom (게임방)           ← 사용자가 인식하는 단위
   host_user_id = 방장
-  room_code (6자리)
+  room_code (6자리, 정산 리포트 표시용 - 참여에는 쓰지 않는다)
   course_id (어느 코스를 도는지)
   max_members (정원)
   status: WAITING → RUNNING → FINISHED
@@ -60,15 +60,15 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 4. 생성자를 방장으로 지정, 동시에 `Team` 1행 + `TeamMember` 1행 생성 (`createTeamWithMember`)
 5. `ROOM_CREATED` 이벤트 발행
 
-### ② 참여 — `POST /api/game-rooms/join`
+### ② 참여 — `GET /api/game-rooms` 로 목록을 보고 `POST /api/game-rooms/{roomId}/join`
 
 ```json
-{ "roomCode": "AB3D5F" }
+(요청 본문 없음)
 ```
 
 `joinRoom` (`GameRoomServiceImpl.java:88`) 의 분기:
 
-1. 방 코드로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
+1. roomId 로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
 2. **이미 이 방의 멤버** → `rejoinRoom()` 으로 재입장 처리 (4장 참고)
 3. 신규 참여
    - `WAITING` 상태인지 확인
@@ -129,7 +129,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### 재입장
 
-별도 API가 없다. 참여 API(`/game-rooms/join`)를 다시 호출하면 `rejoinRoom` (`:265`)이 처리한다.
+별도 API가 없다. 참여 API(`POST /game-rooms/{roomId}/join`)를 다시 호출하면 `rejoinRoom` 이 처리한다.
 
 1. `FINISHED` 방이면 거부
 2. **하차 이력이 있으면 거부** (`LEFT_ROOM_CANNOT_REJOIN`)
@@ -225,7 +225,8 @@ SELECT game_room_id, count(*) FROM teams GROUP BY game_room_id HAVING count(*) >
 | 이전 | 이후 |
 |---|---|
 | `POST /game-rooms` `{teamName, maxTeams}` | `{roomName, maxMembers}` |
-| `POST /game-rooms/join` `{teamId, teamName}` | 두 필드 삭제 |
+| `POST /game-rooms/join` `{roomCode, password}` | `POST /game-rooms/{roomId}/join` (본문 없음) |
+| (방 찾기 수단 없음) | `GET /game-rooms` 대기 중인 방 목록 추가 |
 | `GET /game-rooms/{roomId}/teams/{teamId}/progress` | `GET /game-rooms/{roomId}/progress` |
 | `GET /teams/{teamId}/members` | `GET /game-rooms/{roomId}/members` |
 | `GET .../missions?teamId=` | 파라미터 삭제 |

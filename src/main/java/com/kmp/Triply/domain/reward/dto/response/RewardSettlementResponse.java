@@ -12,7 +12,8 @@ import java.util.List;
 public class RewardSettlementResponse {
 
     private Long gameRoomId;
-    private String roomCode;
+    /** 방 이름. 방 코드는 이제 어디에도 노출되지 않아 리포트에서 알아볼 수 없다. */
+    private String roomName;
     private boolean settled;
     private int teamCount;
     private int issuedCouponCount;
@@ -23,7 +24,8 @@ public class RewardSettlementResponse {
                                               List<RewardSettlementTeamResponse> teams) {
         return RewardSettlementResponse.builder()
                 .gameRoomId(gameRoom.getId())
-                .roomCode(gameRoom.getRoomCode())
+                // 한 방 = 한 팀이라 팀 이름이 곧 방 이름이다.
+                .roomName(teams.isEmpty() ? null : teams.get(0).getTeamName())
                 .settled(true)
                 .teamCount(teams.size())
                 .issuedCouponCount(issuedCouponCount)
