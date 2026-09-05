@@ -2,10 +2,13 @@ package com.kmp.Triply.domain.game.repository;
 
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.GameStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface GameRoomRepository extends JpaRepository<GameRoom, Long> {
@@ -26,4 +29,14 @@ public interface GameRoomRepository extends JpaRepository<GameRoom, Long> {
             order by room.createdAt desc
             """)
     List<Object[]> findRoomSummariesByStatus(@Param("status") GameStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select room
+            from GameRoom room
+            where room.status = com.kmp.Triply.domain.game.entity.GameStatus.WAITING
+              and room.readySinceAt is not null
+              and room.readySinceAt <= :cutoff
+            """)
+    List<GameRoom> findHostDelegationCandidates(@Param("cutoff") LocalDateTime cutoff);
 }

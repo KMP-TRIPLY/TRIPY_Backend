@@ -34,14 +34,18 @@ import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -64,6 +68,9 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    @Value("${game.room.host-delegation-timeout-minutes:5}")
+    private long hostDelegationTimeoutMinutes;
+
     @Override
     @Transactional
     public GameRoomJoinResponse createRoom(Long userId, GameRoomCreateRequest request) {
@@ -85,6 +92,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .build());
 
         Team team = createTeamWithMember(gameRoom, host, request.getRoomName());
+        refreshReadyState(gameRoom);
         GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, team);
         realtimeNotifier.publish(gameRoom.getId(), "ROOM_CREATED", "게임 방이 생성되었습니다.", response);
         return response;
@@ -111,7 +119,7 @@ public class GameRoomServiceImpl implements GameRoomService {
 
         // 새로 들어오는 사람만 대기 중인 방으로 제한한다.
         validateWaitingRoom(gameRoom);
-        if (teamMemberRepository.countByTeamGameRoomId(gameRoom.getId()) >= gameRoom.getMaxMembers()) {
+        if (teamMemberRepository.countByTeamGameRoomIdAndIsActiveTrue(gameRoom.getId()) >= gameRoom.getMaxMembers()) {
             throw new CustomException(ErrorCode.ROOM_CAPACITY_EXCEEDED);
         }
 
@@ -121,6 +129,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .user(user)
                 .build();
         teamMemberRepository.save(teamMember);
+        refreshReadyState(gameRoom);
 
         GameRoomJoinResponse response = GameRoomJoinResponse.of(gameRoom, team);
         realtimeNotifier.publish(gameRoom.getId(), "MEMBER_JOINED", "새 멤버가 게임 방에 참여했습니다.", response);
@@ -142,9 +151,11 @@ public class GameRoomServiceImpl implements GameRoomService {
     @Transactional
     public GameRoomResponse startRoom(Long userId, GameRoomStartRequest request) {
         GameRoom gameRoom = getRoom(request.getRoomId());
+        delegateHostIfTimedOut(gameRoom, LocalDateTime.now());
         validateHost(gameRoom, userId);
         validateWaitingRoom(gameRoom);
 
+        gameRoom.clearReady();
         gameRoom.start();
         teamRepository.findAllByGameRoomId(gameRoom.getId())
                 .forEach(Team::startPlaying);
@@ -158,6 +169,7 @@ public class GameRoomServiceImpl implements GameRoomService {
     @Transactional
     public GameRoomResponse changeCourse(Long userId, Long roomId, GameRoomCourseChangeRequest request) {
         GameRoom gameRoom = getRoom(roomId);
+        delegateHostIfTimedOut(gameRoom, LocalDateTime.now());
         validateHost(gameRoom, userId);
         validateWaitingRoom(gameRoom);
         Course course = courseRepository.findById(request.getCourseId())
@@ -179,16 +191,18 @@ public class GameRoomServiceImpl implements GameRoomService {
     public GameRoomResponse changeMaxMembers(Long userId, Long roomId,
                                              GameRoomMaxMembersChangeRequest request) {
         GameRoom gameRoom = getRoom(roomId);
+        delegateHostIfTimedOut(gameRoom, LocalDateTime.now());
         validateHost(gameRoom, userId);
         validateWaitingRoom(gameRoom);
 
         // 이미 들어온 사람을 밀어낼 수는 없으므로 현재 인원 아래로는 못 줄인다.
-        long memberCount = teamMemberRepository.countByTeamGameRoomId(roomId);
+        long memberCount = teamMemberRepository.countByTeamGameRoomIdAndIsActiveTrue(roomId);
         if (request.getMaxMembers() < memberCount) {
             throw new CustomException(ErrorCode.ROOM_CAPACITY_BELOW_MEMBERS);
         }
 
         gameRoom.changeMaxMembers(request.getMaxMembers());
+        refreshReadyState(gameRoom);
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
         realtimeNotifier.publish(roomId, "ROOM_CAPACITY_CHANGED", "게임 방 정원이 변경되었습니다.", response);
         return response;
@@ -200,10 +214,6 @@ public class GameRoomServiceImpl implements GameRoomService {
         GameRoom gameRoom = getRoom(roomId);
         TeamMember teamMember = teamMemberRepository.findByTeamGameRoomIdAndUserIdAndIsActiveTrue(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.TEAM_MEMBER_NOT_FOUND));
-        // 방장은 못 나간다. 방을 시작·종료할 사람이 사라지면 남은 사람들이 방에 갇힌다.
-        if (gameRoom.getHost().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
-        }
 
         return switch (gameRoom.getStatus()) {
             case WAITING -> leaveWaitingRoom(gameRoom, teamMember);
@@ -218,10 +228,19 @@ public class GameRoomServiceImpl implements GameRoomService {
      */
     private TeamLeaveResponse leaveWaitingRoom(GameRoom gameRoom, TeamMember teamMember) {
         Long userId = teamMember.getUser().getId();
+        List<TeamMember> activeMembers = teamMemberRepository
+                .findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(gameRoom.getId());
+        delegateHostBeforeLeavingIfNeeded(gameRoom, teamMember, activeMembers);
         teamMemberRepository.delete(teamMember);
+        gameRoom.clearReady();
 
         TeamLeaveResponse response = TeamLeaveResponse.ofWaitingRoom(gameRoom.getId(), userId);
         realtimeNotifier.publish(gameRoom.getId(), "MEMBER_LEFT", "멤버가 대기실에서 나갔습니다.", response);
+        if (remainingMemberCount(activeMembers, userId) == 0) {
+            gameRoom.cancel();
+            realtimeNotifier.publish(gameRoom.getId(), "ROOM_CANCELLED",
+                    "모든 멤버가 나가 게임 방이 취소되었습니다.", GameRoomResponse.from(gameRoom));
+        }
         return response;
     }
 
@@ -283,6 +302,7 @@ public class GameRoomServiceImpl implements GameRoomService {
     @Transactional
     public void kickMember(Long hostUserId, Long roomId, Long userId) {
         GameRoom gameRoom = getRoom(roomId);
+        delegateHostIfTimedOut(gameRoom, LocalDateTime.now());
         validateHost(gameRoom, hostUserId);
         validateWaitingRoom(gameRoom);
         if (hostUserId.equals(userId)) {
@@ -293,6 +313,7 @@ public class GameRoomServiceImpl implements GameRoomService {
                 .orElseThrow(() -> new CustomException(ErrorCode.TEAM_MEMBER_NOT_FOUND));
 
         teamMemberRepository.delete(teamMember);
+        gameRoom.clearReady();
         realtimeNotifier.publish(roomId, "MEMBER_KICKED", "멤버가 게임 방에서 강퇴되었습니다.", userId);
     }
 
@@ -354,6 +375,104 @@ public class GameRoomServiceImpl implements GameRoomService {
         if (!gameRoom.getHost().getId().equals(userId)) {
             throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
         }
+    }
+
+    @Scheduled(fixedDelayString = "${game.room.host-delegation-check-delay-ms:60000}")
+    @Transactional
+    public void delegateTimedOutHosts() {
+        if (hostDelegationTimeoutMinutes <= 0) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.minusMinutes(hostDelegationTimeoutMinutes);
+        gameRoomRepository.findHostDelegationCandidates(cutoff)
+                .forEach(gameRoom -> delegateHostIfReady(gameRoom, now));
+    }
+
+    private void refreshReadyState(GameRoom gameRoom) {
+        if (gameRoom.getStatus() != GameStatus.WAITING || gameRoom.getMaxMembers() <= 1) {
+            gameRoom.clearReady();
+            return;
+        }
+        long activeMemberCount = teamMemberRepository.countByTeamGameRoomIdAndIsActiveTrue(gameRoom.getId());
+        if (activeMemberCount >= gameRoom.getMaxMembers()) {
+            gameRoom.markReady(LocalDateTime.now());
+        } else {
+            gameRoom.clearReady();
+        }
+    }
+
+    private void delegateHostIfTimedOut(GameRoom gameRoom, LocalDateTime now) {
+        if (hostDelegationTimeoutMinutes <= 0
+                || gameRoom.getStatus() != GameStatus.WAITING
+                || gameRoom.getReadySinceAt() == null
+                || gameRoom.getReadySinceAt().plusMinutes(hostDelegationTimeoutMinutes).isAfter(now)) {
+            return;
+        }
+        delegateHostIfReady(gameRoom, now);
+    }
+
+    private void delegateHostIfReady(GameRoom gameRoom, LocalDateTime delegatedAt) {
+        List<TeamMember> members = teamMemberRepository
+                .findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(gameRoom.getId());
+        if (gameRoom.getStatus() != GameStatus.WAITING
+                || gameRoom.getMaxMembers() <= 1
+                || members.size() < gameRoom.getMaxMembers()) {
+            gameRoom.clearReady();
+            return;
+        }
+
+        nextHostByJoinOrder(gameRoom, members).ifPresent(nextHost -> {
+            gameRoom.changeHost(nextHost, delegatedAt);
+            GameRoomResponse response = GameRoomResponse.from(gameRoom);
+            realtimeNotifier.publish(gameRoom.getId(), "HOST_DELEGATED",
+                    "게임 시작 지연으로 방장 권한이 위임되었습니다.", response);
+        });
+    }
+
+    private void delegateHostBeforeLeavingIfNeeded(GameRoom gameRoom, TeamMember leavingMember,
+                                                  List<TeamMember> activeMembers) {
+        if (!gameRoom.getHost().getId().equals(leavingMember.getUser().getId())) {
+            return;
+        }
+        activeMembers.stream()
+                .filter(member -> !member.getUser().getId().equals(leavingMember.getUser().getId()))
+                .map(TeamMember::getUser)
+                .findFirst()
+                .ifPresent(nextHost -> {
+                    gameRoom.changeHost(nextHost, LocalDateTime.now());
+                    GameRoomResponse response = GameRoomResponse.from(gameRoom);
+                    realtimeNotifier.publish(gameRoom.getId(), "HOST_DELEGATED",
+                            "방장이 나가 방장 권한이 위임되었습니다.", response);
+                });
+    }
+
+    private long remainingMemberCount(List<TeamMember> activeMembers, Long leavingUserId) {
+        return activeMembers.stream()
+                .filter(member -> !member.getUser().getId().equals(leavingUserId))
+                .count();
+    }
+
+    private Optional<User> nextHostByJoinOrder(GameRoom gameRoom, List<TeamMember> members) {
+        Long currentHostId = gameRoom.getHost().getId();
+        return members.stream()
+                .filter(member -> member.getUser().getId().equals(currentHostId))
+                .findFirst()
+                .flatMap(currentHost -> members.stream()
+                        .filter(member -> joinedAfter(member, currentHost))
+                        .map(TeamMember::getUser)
+                        .findFirst())
+                .or(() -> members.stream()
+                        .map(TeamMember::getUser)
+                        .filter(user -> !user.getId().equals(currentHostId))
+                        .findFirst());
+    }
+
+    private boolean joinedAfter(TeamMember member, TeamMember currentHost) {
+        int joinedAtOrder = member.getJoinedAt().compareTo(currentHost.getJoinedAt());
+        return joinedAtOrder > 0
+                || joinedAtOrder == 0 && member.getId() != null && currentHost.getId() != null
+                && member.getId() > currentHost.getId();
     }
 
     /**

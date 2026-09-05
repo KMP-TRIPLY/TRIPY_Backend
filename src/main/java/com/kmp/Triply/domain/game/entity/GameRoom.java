@@ -61,6 +61,9 @@ public class GameRoom {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    @Column(name = "ready_since_at")
+    private LocalDateTime readySinceAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -82,6 +85,21 @@ public class GameRoom {
 
     public void changeCourse(Course course) {
         this.course = course;
+    }
+
+    public void changeHost(User host, LocalDateTime delegatedAt) {
+        this.host = host;
+        this.readySinceAt = delegatedAt;
+    }
+
+    public void markReady(LocalDateTime readyAt) {
+        if (this.readySinceAt == null) {
+            this.readySinceAt = readyAt;
+        }
+    }
+
+    public void clearReady() {
+        this.readySinceAt = null;
     }
 
     /**

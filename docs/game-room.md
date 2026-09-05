@@ -41,8 +41,9 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 | 게임 종료 | `endRoom` |
 | 멤버 강퇴 | `kickMember` (자기 자신은 불가) |
 
-그리고 방장은 **방을 나갈 수 없다** — `leaveRoom` 이 `GAME_ROOM_ACCESS_DENIED`(403)로 막는다.
-방을 시작·종료할 사람이 사라지면 남은 멤버가 방에 갇히기 때문이다.
+대기 중에는 방장도 나갈 수 있다. 이때 입장 순서상 다음 활성 멤버에게 방장 권한이 넘어간다.
+넘길 멤버가 없으면 방은 `CANCELLED` 가 되어 목록에서 사라진다.
+진행 중에는 방장이 나갈 수 없다 — 방을 종료할 사람이 사라지면 남은 멤버가 방에 갇히기 때문이다.
 
 ---
 
@@ -76,6 +77,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
    - `WAITING` 상태인지 확인
    - 정원 확인: `countByTeamGameRoomId >= maxMembers` 면 `ROOM_CAPACITY_EXCEEDED`
    - 방의 유일한 팀에 합류
+   - 정원이 찼으면 `ready_since_at` 을 기록해 방장 위임 타이머 시작
    - `MEMBER_JOINED` 이벤트 발행
 
 팀 선택 개념이 없다. 이전의 `teamId` / `teamName` 요청 필드는 삭제했다.
@@ -83,6 +85,9 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 ### ③ 시작 — `POST /api/game-rooms/start`
 
 방장 전용. `WAITING` → `RUNNING`, 팀 상태도 `PLAYING` 으로 전환. `ROOM_STARTED` 발행.
+정원이 찬 뒤 일정 시간(`GAME_ROOM_HOST_DELEGATION_TIMEOUT_MINUTES`, 기본 5분) 동안 시작하지 않으면
+방장 권한이 입장 순서상 다음 활성 멤버에게 넘어간다.
+위임되면 `HOST_DELEGATED` 이벤트가 발행되고, 타이머는 새 방장 기준으로 다시 시작된다.
 
 ### ④ 플레이
 
@@ -125,9 +130,12 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 | 조건 | 동작 |
 |---|---|
-| 방장 | 즉시 403. 나갈 방법이 없다 |
-| `WAITING` | `leaveWaitingRoom` — `TeamMember` 행 **삭제**, 이력 없음 → 다시 들어올 수 있다 |
+| 방장 + `WAITING` | 입장 순서상 다음 활성 멤버에게 방장 위임. 없으면 방 취소 |
+| 방장 + `RUNNING` | 즉시 403. 진행 중에는 나갈 방법이 없다 |
+| 일반 멤버 + `WAITING` | `leaveWaitingRoom` — `TeamMember` 행 **삭제**, 이력 없음 → 다시 들어올 수 있다 |
 | `RUNNING` | `leaveRunningRoom` — `is_active=false` + `TeamLeaveHistory` 에 사유와 `preservedScore` 기록 → **재입장 불가** |
+
+대기 중 멤버가 나가거나 강퇴되면 정원이 다시 비므로 방장 위임 타이머는 초기화된다.
 
 ### 재입장
 
@@ -207,6 +215,12 @@ ALTER TABLE rankings DROP CONSTRAINT IF EXISTS rankings_ranking_type_check;
 UPDATE rankings SET ranking_type = 'ROOM' WHERE ranking_type = 'TEAM';
 ALTER TABLE rankings ADD CONSTRAINT rankings_ranking_type_check
   CHECK (ranking_type IN ('ROOM', 'PERSONAL'));
+```
+
+방장 위임 타이머를 쓰려면 아래 컬럼도 필요하다.
+
+```sql
+ALTER TABLE game_rooms ADD COLUMN IF NOT EXISTS ready_since_at timestamp;
 ```
 
 컬럼을 지우지 않으면 `NOT NULL` 위반으로 방 생성이 전부 실패한다.
