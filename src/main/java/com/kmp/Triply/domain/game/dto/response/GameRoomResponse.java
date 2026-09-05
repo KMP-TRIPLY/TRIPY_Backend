@@ -21,6 +21,7 @@ public class GameRoomResponse {
     private short maxMembers;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
+    private LocalDateTime readySinceAt;
     private LocalDateTime createdAt;
 
     public static GameRoomResponse from(GameRoom gameRoom) {
@@ -34,6 +35,7 @@ public class GameRoomResponse {
                 .maxMembers(gameRoom.getMaxMembers())
                 .startedAt(gameRoom.getStartedAt())
                 .endedAt(gameRoom.getEndedAt())
+                .readySinceAt(gameRoom.getReadySinceAt())
                 .createdAt(gameRoom.getCreatedAt())
                 .build();
     }

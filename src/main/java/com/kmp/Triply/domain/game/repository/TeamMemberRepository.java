@@ -22,9 +22,13 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     List<TeamMember> findAllByTeamIdAndIsActiveTrue(Long teamId);
 
+    List<TeamMember> findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(Long gameRoomId);
+
     Optional<TeamMember> findByTeamGameRoomIdAndUserIdAndIsActiveTrue(Long gameRoomId, Long userId);
 
     boolean existsByTeamGameRoomIdAndUserIdAndIsActiveTrue(Long gameRoomId, Long userId);
 
     long countByTeamGameRoomId(Long gameRoomId);
+
+    long countByTeamGameRoomIdAndIsActiveTrue(Long gameRoomId);
 }
