@@ -230,15 +230,17 @@ public class GameRoomServiceImpl implements GameRoomService {
         Long userId = teamMember.getUser().getId();
         List<TeamMember> activeMembers = teamMemberRepository
                 .findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(gameRoom.getId());
-        if (gameRoom.getHost().getId().equals(userId) && remainingMemberCount(activeMembers, userId) == 0) {
-            throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
-        }
         delegateHostBeforeLeavingIfNeeded(gameRoom, teamMember, activeMembers);
         teamMemberRepository.delete(teamMember);
         gameRoom.clearReady();
 
         TeamLeaveResponse response = TeamLeaveResponse.ofWaitingRoom(gameRoom.getId(), userId);
         realtimeNotifier.publish(gameRoom.getId(), "MEMBER_LEFT", "멤버가 대기실에서 나갔습니다.", response);
+        if (remainingMemberCount(activeMembers, userId) == 0) {
+            gameRoom.cancel();
+            realtimeNotifier.publish(gameRoom.getId(), "ROOM_CANCELLED",
+                    "모든 멤버가 나가 게임 방이 취소되었습니다.", GameRoomResponse.from(gameRoom));
+        }
         return response;
     }
 

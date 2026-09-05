@@ -2,6 +2,7 @@ package com.kmp.Triply.domain.game.service;
 
 import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.game.entity.GameRoom;
+import com.kmp.Triply.domain.game.entity.GameStatus;
 import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.entity.TeamMember;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
@@ -117,6 +118,34 @@ class GameRoomHostDelegationTest {
                 eq("방장이 나가 방장 권한이 위임되었습니다."), any());
         verify(notifier).publish(eq(room.getId()), eq("MEMBER_LEFT"),
                 eq("멤버가 대기실에서 나갔습니다."), any());
+    }
+
+    @Test
+    void 대기중_마지막_멤버가_나가면_방이_취소된다() {
+        GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
+        TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
+        GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
+        GameRoomServiceImpl service = new GameRoomServiceImpl(
+                gameRoomRepository, null, teamMemberRepository, null, null, null,
+                null, null, null, notifier, null);
+
+        User host = user(1L);
+        GameRoom room = room(10L, host, (short) 1, LocalDateTime.now());
+        Team team = Team.builder().gameRoom(room).teamName("혼자 하는 방").build();
+        TeamMember hostMember = member(100L, team, host, LocalDateTime.now().minusMinutes(10));
+
+        when(gameRoomRepository.findById(room.getId())).thenReturn(Optional.of(room));
+        when(teamMemberRepository.findByTeamGameRoomIdAndUserIdAndIsActiveTrue(room.getId(), host.getId()))
+                .thenReturn(Optional.of(hostMember));
+        when(teamMemberRepository.findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(room.getId()))
+                .thenReturn(List.of(hostMember));
+
+        service.leaveRoom(host.getId(), room.getId(), null);
+
+        assertThat(room.getStatus()).isEqualTo(GameStatus.CANCELLED);
+        verify(teamMemberRepository).delete(hostMember);
+        verify(notifier).publish(eq(room.getId()), eq("ROOM_CANCELLED"),
+                eq("모든 멤버가 나가 게임 방이 취소되었습니다."), any());
     }
 
     private static GameRoom room(Long id, User host, short maxMembers, LocalDateTime readySinceAt) {

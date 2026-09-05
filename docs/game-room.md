@@ -42,6 +42,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 | 멤버 강퇴 | `kickMember` (자기 자신은 불가) |
 
 대기 중에는 방장도 나갈 수 있다. 이때 입장 순서상 다음 활성 멤버에게 방장 권한이 넘어간다.
+넘길 멤버가 없으면 방은 `CANCELLED` 가 되어 목록에서 사라진다.
 진행 중에는 방장이 나갈 수 없다 — 방을 종료할 사람이 사라지면 남은 멤버가 방에 갇히기 때문이다.
 
 ---
@@ -129,7 +130,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 | 조건 | 동작 |
 |---|---|
-| 방장 + `WAITING` | 입장 순서상 다음 활성 멤버에게 방장 위임 |
+| 방장 + `WAITING` | 입장 순서상 다음 활성 멤버에게 방장 위임. 없으면 방 취소 |
 | 방장 + `RUNNING` | 즉시 403. 진행 중에는 나갈 방법이 없다 |
 | 일반 멤버 + `WAITING` | `leaveWaitingRoom` — `TeamMember` 행 **삭제**, 이력 없음 → 다시 들어올 수 있다 |
 | `RUNNING` | `leaveRunningRoom` — `is_active=false` + `TeamLeaveHistory` 에 사유와 `preservedScore` 기록 → **재입장 불가** |
