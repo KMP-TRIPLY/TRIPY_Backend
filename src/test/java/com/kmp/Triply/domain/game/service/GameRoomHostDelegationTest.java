@@ -12,6 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,6 +82,41 @@ class GameRoomHostDelegationTest {
 
         assertThat(room.getHost()).isSameAs(host);
         assertThat(room.getReadySinceAt()).isNull();
+    }
+
+    @Test
+    void 대기중_방장이_나가면_입장순서상_다음_멤버가_방장이_된다() {
+        GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
+        TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
+        GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
+        GameRoomServiceImpl service = new GameRoomServiceImpl(
+                gameRoomRepository, null, teamMemberRepository, null, null, null,
+                null, null, null, notifier, null);
+
+        User host = user(1L);
+        User second = user(2L);
+        User third = user(3L);
+        GameRoom room = room(10L, host, (short) 3, LocalDateTime.now());
+        Team team = Team.builder().gameRoom(room).teamName("공주 원정대").build();
+        TeamMember hostMember = member(100L, team, host, LocalDateTime.now().minusMinutes(10));
+        TeamMember secondMember = member(101L, team, second, LocalDateTime.now().minusMinutes(9));
+        TeamMember thirdMember = member(102L, team, third, LocalDateTime.now().minusMinutes(8));
+
+        when(gameRoomRepository.findById(room.getId())).thenReturn(Optional.of(room));
+        when(teamMemberRepository.findByTeamGameRoomIdAndUserIdAndIsActiveTrue(room.getId(), host.getId()))
+                .thenReturn(Optional.of(hostMember));
+        when(teamMemberRepository.findAllByTeamGameRoomIdAndIsActiveTrueOrderByJoinedAtAscIdAsc(room.getId()))
+                .thenReturn(List.of(hostMember, secondMember, thirdMember));
+
+        service.leaveRoom(host.getId(), room.getId(), null);
+
+        assertThat(room.getHost()).isSameAs(second);
+        assertThat(room.getReadySinceAt()).isNull();
+        verify(teamMemberRepository).delete(hostMember);
+        verify(notifier).publish(eq(room.getId()), eq("HOST_DELEGATED"),
+                eq("방장이 나가 방장 권한이 위임되었습니다."), any());
+        verify(notifier).publish(eq(room.getId()), eq("MEMBER_LEFT"),
+                eq("멤버가 대기실에서 나갔습니다."), any());
     }
 
     private static GameRoom room(Long id, User host, short maxMembers, LocalDateTime readySinceAt) {
