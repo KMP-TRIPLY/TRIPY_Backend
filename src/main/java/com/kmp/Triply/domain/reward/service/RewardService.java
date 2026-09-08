@@ -11,4 +11,6 @@ public interface RewardService {
     List<UserRewardResponse> getMyRewards(Long userId);
 
     RewardSettlementResponse settleRewards(RewardSettleRequest request);
+
+    RewardSettlementResponse settleFinishedRoom(Long gameRoomId);
 }

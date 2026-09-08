@@ -28,6 +28,7 @@ import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.ranking.entity.Ranking;
 import com.kmp.Triply.domain.ranking.entity.RankingType;
 import com.kmp.Triply.domain.ranking.repository.RankingRepository;
+import com.kmp.Triply.domain.reward.service.RewardService;
 import com.kmp.Triply.domain.user.entity.User;
 import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.domain.user.repository.UserTravelProfileRepository;
@@ -65,6 +66,7 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
+    private final RewardService rewardService;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -282,6 +284,7 @@ public class GameRoomServiceImpl implements GameRoomService {
         }
         gameRoom.finish();
         saveFinalRankings(gameRoom, teamRankingRows);
+        rewardService.settleFinishedRoom(gameRoom.getId());
 
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
         realtimeNotifier.publish(gameRoom.getId(), "ROOM_FINISHED", "게임이 종료되고 점수가 잠겼습니다.", response);
