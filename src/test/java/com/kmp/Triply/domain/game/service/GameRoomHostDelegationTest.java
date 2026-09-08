@@ -31,7 +31,7 @@ class GameRoomHostDelegationTest {
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
         GameRoomServiceImpl service = new GameRoomServiceImpl(
                 gameRoomRepository, null, teamMemberRepository, null, null, null,
-                null, null, null, notifier, null);
+                null, null, null, notifier, null, null);
         ReflectionTestUtils.setField(service, "hostDelegationTimeoutMinutes", 5L);
 
         User host = user(1L);
@@ -63,7 +63,7 @@ class GameRoomHostDelegationTest {
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
         GameRoomServiceImpl service = new GameRoomServiceImpl(
                 gameRoomRepository, null, teamMemberRepository, null, null, null,
-                null, null, null, mock(GameRoomRealtimeNotifier.class), null);
+                null, null, null, mock(GameRoomRealtimeNotifier.class), null, null);
         ReflectionTestUtils.setField(service, "hostDelegationTimeoutMinutes", 5L);
 
         User host = user(1L);
@@ -92,7 +92,7 @@ class GameRoomHostDelegationTest {
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
         GameRoomServiceImpl service = new GameRoomServiceImpl(
                 gameRoomRepository, null, teamMemberRepository, null, null, null,
-                null, null, null, notifier, null);
+                null, null, null, notifier, null, null);
 
         User host = user(1L);
         User second = user(2L);
@@ -127,7 +127,7 @@ class GameRoomHostDelegationTest {
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
         GameRoomServiceImpl service = new GameRoomServiceImpl(
                 gameRoomRepository, null, teamMemberRepository, null, null, null,
-                null, null, null, notifier, null);
+                null, null, null, notifier, null, null);
 
         User host = user(1L);
         GameRoom room = room(10L, host, (short) 1, LocalDateTime.now());
