@@ -26,6 +26,7 @@ COMMIT;
 BEGIN;
 ALTER TABLE rankings DROP CONSTRAINT IF EXISTS rankings_ranking_type_check;
 UPDATE rankings SET ranking_type = 'ROOM' WHERE ranking_type = 'TEAM';
+ALTER TABLE rankings ALTER COLUMN team_id DROP NOT NULL;
 ALTER TABLE rankings ADD CONSTRAINT rankings_ranking_type_check
   CHECK (ranking_type IN ('ROOM', 'PERSONAL'));
 COMMIT;
