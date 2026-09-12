@@ -19,7 +19,7 @@ class GamePlayServiceImplTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final GamePlayServiceImpl service =
-            new GamePlayServiceImpl(null, null, null, null, null, null, null, MAPPER, null, null);
+            new GamePlayServiceImpl(null, null, null, null, null, null, null, MAPPER, null, null, null);
 
     private static final String CHOICES = """
             [{"label":"경복궁","value":"A","is_correct":true},

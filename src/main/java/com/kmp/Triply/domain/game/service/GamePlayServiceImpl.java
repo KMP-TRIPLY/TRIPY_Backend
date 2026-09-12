@@ -12,7 +12,6 @@ import com.kmp.Triply.domain.game.dto.request.HintRequest;
 import com.kmp.Triply.domain.game.dto.request.MissionSubmitRequest;
 import com.kmp.Triply.domain.game.dto.request.SpotArriveRequest;
 import com.kmp.Triply.domain.game.dto.response.HintResponse;
-import com.kmp.Triply.domain.game.dto.response.MissionClearNotificationResponse;
 import com.kmp.Triply.domain.game.dto.response.MissionSubmitResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayChoiceResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayMissionResponse;
@@ -33,6 +32,7 @@ import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
 import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.user.entity.User;
+import com.kmp.Triply.domain.user.service.NotificationService;
 import com.kmp.Triply.global.exception.CustomException;
 import com.kmp.Triply.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +63,7 @@ public class GamePlayServiceImpl implements GamePlayService {
     private final ObjectMapper objectMapper;
     private final PhotoStorageService photoStorage;
     private final PhotoVerificationService photoVerifier;
+    private final NotificationService notificationService;
 
     @Override
     public RoomProgressResponse getRoomProgress(Long userId, Long roomId) {
@@ -279,15 +280,7 @@ public class GamePlayServiceImpl implements GamePlayService {
             }
             realtimeNotifier.publish(room.getId(), "SCORE_UPDATED",
                     team.getTeamName() + " 팀 점수가 갱신되었습니다.", team.getTotalScore());
-
-            MissionClearNotificationResponse notification = MissionClearNotificationResponse.of(
-                    missionId,
-                    spot.getId(),
-                    team,
-                    submission.user(),
-                    scoreEarned
-            );
-            realtimeNotifier.publish(room.getId(), "MISSION_CLEARED", notification.getMessage(), notification);
+            notificationService.createMissionClearNotifications(team, submission.user(), scoreEarned);
         }
         realtimeNotifier.publish(room.getId(), "MISSION_SOLVED",
                 team.getTeamName() + " 팀 미션 결과: " + result.name(), missionId);
