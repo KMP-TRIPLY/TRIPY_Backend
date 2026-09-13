@@ -61,7 +61,13 @@ public class RewardServiceImpl implements RewardService {
     @Override
     @Transactional
     public RewardSettlementResponse settleRewards(RewardSettleRequest request) {
-        GameRoom gameRoom = gameRoomRepository.findById(request.getGameRoomId())
+        return settleFinishedRoom(request.getGameRoomId());
+    }
+
+    @Override
+    @Transactional
+    public RewardSettlementResponse settleFinishedRoom(Long gameRoomId) {
+        GameRoom gameRoom = gameRoomRepository.findById(gameRoomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
         if (gameRoom.getStatus() != GameStatus.FINISHED) {
             throw new CustomException(ErrorCode.REWARD_SETTLEMENT_UNAVAILABLE);
