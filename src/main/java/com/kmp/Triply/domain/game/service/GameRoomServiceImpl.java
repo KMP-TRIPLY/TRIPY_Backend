@@ -26,6 +26,7 @@ import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
 import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
 import com.kmp.Triply.domain.game.repository.TeamRepository;
 import com.kmp.Triply.domain.ranking.entity.Ranking;
+import com.kmp.Triply.domain.reward.service.GameRewardGrantService;
 import com.kmp.Triply.domain.ranking.entity.RankingType;
 import com.kmp.Triply.domain.ranking.repository.RankingRepository;
 import com.kmp.Triply.domain.reward.service.RewardService;
@@ -66,6 +67,7 @@ public class GameRoomServiceImpl implements GameRoomService {
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
+    private final GameRewardGrantService gameRewardGrantService;
     private final RewardService rewardService;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -284,6 +286,8 @@ public class GameRoomServiceImpl implements GameRoomService {
         }
         gameRoom.finish();
         saveFinalRankings(gameRoom, teamRankingRows);
+        // 순위가 확정된 뒤에 적립한다. 1위 여부를 team.rank 로 판단하므로 순서가 중요하다.
+        gameRewardGrantService.grantForFinishedGame(gameRoom);
         rewardService.settleFinishedRoom(gameRoom.getId());
 
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
