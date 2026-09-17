@@ -21,6 +21,10 @@ public class UserCouponResponse {
     @Schema(description = "쿠폰 코드", example = "TRIPLY-AB12CD")
     private String couponCode;
 
+    /** 게임 보상으로 받은 쿠폰인지 구분한다. 제휴처에서 직접 발급한 쿠폰이면 비어 있다. */
+    @Schema(description = "이 쿠폰을 받은 게임방 ID. 게임과 무관하게 발급된 쿠폰이면 null", example = "10")
+    private Long gameRoomId;
+
     @Schema(description = "쿠폰 제목", example = "강릉 카페 10% 할인")
     private String title;
 
@@ -55,6 +59,7 @@ public class UserCouponResponse {
         return UserCouponResponse.builder()
                 .id(userCoupon.getId())
                 .couponCode(userCoupon.getCouponCode())
+                .gameRoomId(userCoupon.getGameRoom() == null ? null : userCoupon.getGameRoom().getId())
                 .title(userCoupon.getCoupon().getTitle())
                 .partnerName(userCoupon.getCoupon().getPartnerName())
                 .partnerRegion(userCoupon.getCoupon().getPartnerRegion())

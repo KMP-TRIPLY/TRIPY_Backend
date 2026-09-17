@@ -22,7 +22,10 @@ public class RankingController {
 
     private final RankingService rankingService;
 
-    @Operation(summary = "인게임 실시간 리더보드 조회", description = "진행 중인 게임방에서 멤버별 실시간 점수 순위를 조회합니다.")
+    @Operation(summary = "게임방 멤버별 점수 순위 조회",
+            description = "게임방 안에서 멤버별 점수 순위를 조회합니다. 진행 중이면 실시간 순위이고, "
+                    + "종료된 방이면 그대로 최종 순위가 됩니다 — 결과 화면도 이 API 를 씁니다. "
+                    + "아직 시작하지 않은 방(WAITING)은 조회할 수 없습니다.")
     @GetMapping("/live")
     public ResponseEntity<ApiResponse<RankingResponse>> getLiveRankings(
             @RequestParam Long gameRoomId) {
