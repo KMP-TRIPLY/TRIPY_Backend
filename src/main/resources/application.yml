@@ -140,11 +140,12 @@ mission:
       access-key: ${OCI_S3_ACCESS_KEY:}
       secret-key: ${OCI_S3_SECRET_KEY:}
     verification:
-      # 끄면 "업로드 성공 = 통과". AI 판정은 같은 사진에 결과가 달라질 수 있어 QA 자동화가 안 되므로
-      # 회귀 테스트를 결정적으로 돌리려면 꺼둔다.
-      enabled: ${MISSION_PHOTO_AI_ENABLED:false}
-      api-key: ${ANTHROPIC_API_KEY:}
-      model: ${MISSION_PHOTO_AI_MODEL:claude-opus-5}
+      # false 로 끄면 "업로드 성공 = 통과" 가 되어 아무 사진이나 다 통과한다.
+      # 판정 없이 굴려야 하는 상황(데모·수동 QA)에서만 명시적으로 끈다.
+      enabled: ${MISSION_PHOTO_AI_ENABLED:true}
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      model: ${MISSION_PHOTO_AI_MODEL:gpt-5-mini}
       # 이 값 이상이면 통과. 오탐으로 게임이 막히면 재배포 없이 조정할 수 있어야 한다.
       threshold: ${MISSION_PHOTO_AI_THRESHOLD:0.7}
 
