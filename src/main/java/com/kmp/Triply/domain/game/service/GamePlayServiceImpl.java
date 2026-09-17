@@ -17,6 +17,7 @@ import com.kmp.Triply.domain.game.dto.response.MissionSubmitResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayChoiceResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayMissionResponse;
 import com.kmp.Triply.domain.game.dto.response.SpotArriveResponse;
+import com.kmp.Triply.domain.game.dto.response.SpotCompletedEventResponse;
 import com.kmp.Triply.domain.game.dto.response.SpotProgressResponse;
 import com.kmp.Triply.domain.game.dto.response.RoomProgressResponse;
 import com.kmp.Triply.domain.game.entity.AttemptResult;
@@ -282,7 +283,8 @@ public class GamePlayServiceImpl implements GamePlayService {
                 spotCompleted = true;
                 nextSpotId = nextSpotId(room.getCourse().getId(), spot.getSequenceOrder());
                 realtimeNotifier.publish(room.getId(), "SPOT_COMPLETED",
-                        team.getTeamName() + " 팀이 스팟을 완료했습니다.", spot.getId());
+                        team.getTeamName() + " 팀이 스팟을 완료했습니다.",
+                        SpotCompletedEventResponse.of(spot.getId(), nextSpotId));
             }
             realtimeNotifier.publish(room.getId(), "SCORE_UPDATED",
                     team.getTeamName() + " 팀 점수가 갱신되었습니다.", team.getTotalScore());
