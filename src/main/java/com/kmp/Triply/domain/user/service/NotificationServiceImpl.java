@@ -65,8 +65,11 @@ public class NotificationServiceImpl implements NotificationService {
         String body = submitter.getNickname() + "님이 미션을 클리어했습니다. "
                 + scoreEarned + "포인트를 획득했습니다.";
 
+        // 제출자 본인에게는 남기지 않는다. 방금 자기가 한 일을 "○○님이 클리어했습니다" 로
+        // 다시 받으면 읽지 않은 알림만 늘어난다. 혼자 하는 방이면 아무에게도 안 간다.
         List<Notification> notifications = teamMemberRepository.findAllByTeamIdAndIsActiveTrue(team.getId()).stream()
                 .map(TeamMember::getUser)
+                .filter(user -> !user.getId().equals(submitter.getId()))
                 .map(user -> Notification.builder()
                         .user(user)
                         .type(NotificationType.MISSION_CLEAR)

@@ -12,13 +12,13 @@ import com.kmp.Triply.domain.user.entity.SocialProvider;
 import com.kmp.Triply.domain.user.entity.User;
 import com.kmp.Triply.domain.user.repository.NotificationRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 class NotificationServiceImplTest {
 
     @Test
-    void 미션_클리어_알림은_활성_팀원_전체에게_저장된다() {
+    void 미션_클리어_알림은_제출자를_뺀_활성_팀원에게_저장된다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
         NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, teamMemberRepository);
@@ -39,15 +39,39 @@ class NotificationServiceImplTest {
 
         service.createMissionClearNotifications(team, submitter, 300);
 
-        verify(notificationRepository).saveAll(anyList());
-        verify(notificationRepository).saveAll(org.mockito.ArgumentMatchers.argThat(notifications -> {
-            List<Notification> saved = (List<Notification>) notifications;
-            return saved.size() == 2
-                    && saved.stream().allMatch(notification -> notification.getType() == NotificationType.MISSION_CLEAR)
-                    && saved.stream().allMatch(notification -> notification.getTitle().equals("미션 클리어"))
-                    && saved.stream().allMatch(notification -> notification.getBody()
-                            .equals("민지님이 미션을 클리어했습니다. 300포인트를 획득했습니다."));
-        }));
+        assertThat(savedNotifications(notificationRepository))
+                .singleElement()
+                .satisfies(notification -> {
+                    // 본인이 방금 한 일을 다시 알려줄 필요가 없다
+                    assertThat(notification.getUser().getId()).isEqualTo(teammate.getId());
+                    assertThat(notification.getType()).isEqualTo(NotificationType.MISSION_CLEAR);
+                    assertThat(notification.getTitle()).isEqualTo("미션 클리어");
+                    assertThat(notification.getBody())
+                            .isEqualTo("민지님이 미션을 클리어했습니다. 300포인트를 획득했습니다.");
+                });
+    }
+
+    @Test
+    void 혼자_하는_방이면_알림이_생기지_않는다() {
+        NotificationRepository notificationRepository = mock(NotificationRepository.class);
+        TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
+        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, teamMemberRepository);
+
+        Team team = team(10L);
+        User submitter = user(1L, "민지");
+        when(teamMemberRepository.findAllByTeamIdAndIsActiveTrue(team.getId()))
+                .thenReturn(List.of(member(team, submitter)));
+
+        service.createMissionClearNotifications(team, submitter, 300);
+
+        assertThat(savedNotifications(notificationRepository)).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Notification> savedNotifications(NotificationRepository repository) {
+        ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
+        verify(repository).saveAll(captor.capture());
+        return captor.getValue();
     }
 
     @Test
