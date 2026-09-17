@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -82,8 +83,13 @@ public class PhotoStorageService {
                 .region(Region.of(region))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))
-                // OCI 의 S3 호환 엔드포인트는 경로 방식만 안전하게 동작한다
-                .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+                // OCI 의 S3 호환 엔드포인트는 경로 방식만 안전하게 동작하고, aws-chunked 인코딩은 501 로 거부한다.
+                // 체크섬 기본값(WHEN_SUPPORTED)도 트레일러 때문에 chunked 를 유발하므로 함께 끈다.
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(true)
+                        .chunkedEncodingEnabled(false)
+                        .build())
+                .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                 .build();
     }
 
