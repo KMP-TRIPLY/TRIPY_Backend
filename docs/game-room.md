@@ -185,6 +185,34 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 코스 랭킹에 여러 방의 기록이 함께 쌓이는 것은 의도된 동작이다 (방 vs 방 경쟁).
 
+### 실시간 이벤트
+
+채널은 방마다 하나다: `/topic/game-rooms/{roomId}`. 한 방 = 한 팀이므로 방 채널이 곧 팀 채널이다.
+
+구독하려면 인증이 필요하다. 핸드셰이크(`/ws`)는 열려 있지만 STOMP `CONNECT` 프레임에
+`Authorization: Bearer {accessToken}` 을 실어야 하고, `SUBSCRIBE` 할 때 그 방의 활성 팀원인지
+확인한다 (`WebSocketAuthInterceptor`). 아니면 `ERROR` 프레임이 돌아온다.
+
+모든 이벤트는 **트랜잭션이 커밋된 뒤에** 나간다 (`GameRoomRealtimeNotifier`). 이벤트를 받은
+시점에 조회 API 를 불러도 이미 반영된 값을 읽는다. 롤백되면 이벤트도 나가지 않는다.
+
+| eventType | 언제 | payload |
+|---|---|---|
+| `ROOM_CREATED` | 방 생성 | `GameRoomResponse` |
+| `MEMBER_JOINED` | 멤버 합류 | `GameRoomResponse` |
+| `ROOM_STARTED` | 게임 시작 | `GameRoomResponse` |
+| `HOST_DELEGATED` | 방장 위임 | `GameRoomResponse` |
+| `SPOT_ACTIVATED` | 스팟 도착 인증 | `spotId` |
+| `SCORE_UPDATED` | 정답으로 팀 점수 변동 | 팀 총점 |
+| `SPOT_COMPLETED` | 스팟의 미션을 모두 해결 | `spotId` |
+| `MISSION_SOLVED` | 미션 정답 | `MissionAttemptEventResponse` |
+| `MISSION_FAILED` | 미션 오답 | `MissionAttemptEventResponse` |
+| `ROOM_FINISHED` | 게임 종료 | `GameRoomResponse` |
+
+`MissionAttemptEventResponse` 는 `missionId`, `spotId`, `result`, `correct`, `scoreEarned`,
+`hintUsed`, `userId`, `nickname`, `teamTotalScore`, `spotCompleted` 를 담는다. 누가 무엇을
+풀었는지 나머지 팀원 화면이 그대로 따라 그릴 수 있다.
+
 ### 알려진 공유 자원 이슈
 
 - **쿠폰 재고** (`RewardServiceImpl.java:183`) — `countByCouponId >= maxIssueCount` 확인과 발급 사이에 락이 없다. 두 방이 동시에 정산하면 한도를 넘겨 발급될 수 있다.

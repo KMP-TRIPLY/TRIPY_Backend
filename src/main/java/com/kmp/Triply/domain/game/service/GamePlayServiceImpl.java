@@ -11,6 +11,7 @@ import com.kmp.Triply.domain.course.repository.MissionRepository;
 import com.kmp.Triply.domain.game.dto.request.HintRequest;
 import com.kmp.Triply.domain.game.dto.request.MissionSubmitRequest;
 import com.kmp.Triply.domain.game.dto.request.SpotArriveRequest;
+import com.kmp.Triply.domain.game.dto.response.MissionAttemptEventResponse;
 import com.kmp.Triply.domain.game.dto.response.HintResponse;
 import com.kmp.Triply.domain.game.dto.response.MissionSubmitResponse;
 import com.kmp.Triply.domain.game.dto.response.PlayChoiceResponse;
@@ -287,8 +288,15 @@ public class GamePlayServiceImpl implements GamePlayService {
                     team.getTeamName() + " 팀 점수가 갱신되었습니다.", team.getTotalScore());
             notificationService.createMissionClearNotifications(team, submission.user(), scoreEarned);
         }
-        realtimeNotifier.publish(room.getId(), "MISSION_SOLVED",
-                team.getTeamName() + " 팀 미션 결과: " + result.name(), missionId);
+        // 정답·오답을 이벤트 이름으로 갈라 보낸다. 예전에는 둘 다 MISSION_SOLVED 로 나가고
+        // 구분할 단서가 사람이 읽는 문장뿐이라 프론트가 한글을 파싱해야 했다.
+        realtimeNotifier.publish(room.getId(),
+                correct ? "MISSION_SOLVED" : "MISSION_FAILED",
+                submission.user().getNickname() + "님의 미션 결과: " + result.name(),
+                MissionAttemptEventResponse.of(
+                        missionId, spot.getId(), result, scoreEarned, hintUsed,
+                        submission.user().getId(), submission.user().getNickname(),
+                        team.getTotalScore(), spotCompleted));
 
         return MissionSubmitResponse.builder()
                 .missionId(missionId)
