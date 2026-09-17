@@ -4,7 +4,7 @@ import com.kmp.Triply.domain.user.repository.UserRepository;
 import com.kmp.Triply.global.security.jwt.JwtAuthenticationFilter;
 import com.kmp.Triply.global.security.jwt.JwtProvider;
 import com.kmp.Triply.global.security.oauth2.CustomOAuth2UserService;
-import com.kmp.Triply.global.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.kmp.Triply.global.security.oauth2.RedisOAuth2AuthorizationRequestRepository;
 import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.kmp.Triply.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler successHandler;
     private final OAuth2AuthenticationFailureHandler failureHandler;
     private final CorsConfigurationSource corsConfigurationSource;
-    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+    private final RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final UserRepository userRepository;
 
     @Bean
