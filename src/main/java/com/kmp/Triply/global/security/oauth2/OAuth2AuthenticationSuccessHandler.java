@@ -19,7 +19,6 @@ import java.util.List;
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final AuthService authService;
-    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -34,21 +33,32 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         TokenResponse tokens = authService.issueTokens(oAuth2User.getUser());
 
-        String targetUrl = UriComponentsBuilder.fromUriString(resolveRedirectUri(request, response))
-                .queryParam("access_token", tokens.getAccessToken())
-                .queryParam("refresh_token", tokens.getRefreshToken())
-                .build().toUriString();
+        OAuth2AuthorizationSession session = (OAuth2AuthorizationSession)
+                request.getAttribute(RedisOAuth2AuthorizationRequestRepository.SESSION_ATTRIBUTE);
 
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        UriComponentsBuilder target = UriComponentsBuilder.fromUriString(resolveRedirectUri(session))
+                .queryParam("access_token", tokens.getAccessToken())
+                .queryParam("refresh_token", tokens.getRefreshToken());
+
+        // 초대 링크로 시작한 로그인이면 어느 방이었는지 되돌려준다. 인앱 브라우저에서 외부
+        // 브라우저로 넘어가면 프론트의 localStorage 가 통째로 바뀌어 스스로는 알 수 없다.
+        Long inviteRoomId = session == null ? null : session.inviteRoomId();
+        if (inviteRoomId != null) {
+            target.queryParam("invite", 1).queryParam("room", inviteRoomId);
+        }
+
+        getRedirectStrategy().sendRedirect(request, response, target.build().toUriString());
     }
 
     /**
      * 로그인 시작 시 ?redirect_uri= 로 요청한 주소를 쓴다.
      * 목록에 없거나 없으면 기본 콜백. 부분 일치는 열린 리다이렉트가 되므로 완전 일치만 인정한다.
      */
-    String resolveRedirectUri(HttpServletRequest request, HttpServletResponse response) {
-        return authorizationRequestRepository.popRequestedRedirectUri(request, response)
-                .filter(allowedRedirectUris::contains)
-                .orElse(redirectUri);
+    String resolveRedirectUri(OAuth2AuthorizationSession session) {
+        String requested = session == null ? null : session.requestedRedirectUri();
+        if (requested == null) {
+            return redirectUri;
+        }
+        return allowedRedirectUris.contains(requested) ? requested : redirectUri;
     }
 }
