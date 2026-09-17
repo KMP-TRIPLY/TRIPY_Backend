@@ -13,6 +13,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -24,6 +25,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(e.getErrorCode().getStatus())
                 .body(ApiResponse.fail(e.getMessage()));
+    }
+
+    /**
+     * 업로드 용량 초과. 스프링이 컨트롤러 진입 전에 던지므로 앱의 사진 검증(mission.photo.max-bytes)까지
+     * 닿지 않는다. 그대로 두면 500 이 나가 "서버 잘못"으로 보이지만 실제로는 사용자가 고칠 수 있는 문제다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        return ResponseEntity
+                .status(HttpStatus.CONTENT_TOO_LARGE)
+                .body(ApiResponse.fail("업로드할 수 있는 크기를 넘었습니다. 사진을 줄여서 다시 시도해 주세요."));
     }
 
     @ExceptionHandler(BindException.class)

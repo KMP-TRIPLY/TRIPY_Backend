@@ -8,6 +8,15 @@ spring:
   application:
     name: Triply
 
+  # ===== 업로드 =====
+  # 스프링 기본값은 파일 1MB 라 미션 사진(폰 사진 2~5MB)이 앱에 닿기도 전에 막힌다.
+  # 실제 거절 판단은 mission.photo.max-bytes(5MB)가 하도록 그보다 한 칸 높게 잡는다.
+  # 여기서 먼저 걸리면 앱의 에러 응답 대신 스프링 예외가 나가 응답 포맷이 깨진다.
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 12MB
+
   # ===== Database =====
   datasource:
     url: ${SPRING_DATASOURCE_URL}
