@@ -18,6 +18,8 @@ public class CourseSpotResponse {
     private BigDecimal lat;
     private BigDecimal lng;
     private int radiusMeters;
+    /** 실내 관람 스팟인지. 비 오는 날 이 스팟만 추려 볼 때 쓴다. */
+    private boolean indoor;
     private TourismSpotDetailResponse tourismSpot;
     private List<MissionResponse> missions;
 
@@ -29,6 +31,7 @@ public class CourseSpotResponse {
                 .lat(courseSpot.getLat())
                 .lng(courseSpot.getLng())
                 .radiusMeters(courseSpot.getRadiusMeters())
+                .indoor(courseSpot.isIndoor())
                 .tourismSpot(TourismSpotDetailResponse.from(courseSpot.getTourismSpot()))
                 .missions(missions)
                 .build();

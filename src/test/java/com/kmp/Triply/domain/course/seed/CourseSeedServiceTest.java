@@ -42,7 +42,7 @@ class CourseSeedServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void 스토리_ABC를_모두_등록한다() throws Exception {
+    void 백제_스토리와_당일치기_실내_코스를_모두_등록한다() throws Exception {
         when(courseRepository.existsByTitle(anyString())).thenReturn(false);
         when(tourismSpotRepository.findByOpenApiContentId(anyString())).thenReturn(Optional.empty());
         when(tourismSpotRepository.save(any(TourismSpot.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -55,15 +55,15 @@ class CourseSeedServiceTest {
 
         service.seedIfNeeded();
 
-        // 관광지(공산성/마곡사/정림사지/궁남지)는 3개 스토리가 공유하므로 4번만 생성된다.
-        verify(tourismSpotRepository, times(4)).save(any(TourismSpot.class));
-        // 스토리 A/B/C = 코스 3개.
-        verify(courseRepository, times(3)).save(any(Course.class));
-        // 스토리당 4개 스팟 x 3 스토리 = 12개.
-        verify(courseSpotRepository, times(12)).save(any(CourseSpot.class));
+        // 여러 코스가 공유하는 관광지는 한 번만 생성된다(공산성·마곡사·독립기념관·에코리움 등).
+        verify(tourismSpotRepository, times(27)).save(any(TourismSpot.class));
+        // 백제 스토리 A/B/C + 지역별 당일치기 7개 + 실내 3개 = 코스 13개.
+        verify(courseRepository, times(13)).save(any(Course.class));
+        // 백제 스토리 4x3 + 당일치기(4+3+3+3+3+3+2) + 실내(3+2+2) = 40개.
+        verify(courseSpotRepository, times(40)).save(any(CourseSpot.class));
 
         ArgumentCaptor<Mission> missionCaptor = ArgumentCaptor.forClass(Mission.class);
-        verify(missionRepository, times(28)).save(missionCaptor.capture());
+        verify(missionRepository, times(112)).save(missionCaptor.capture());
 
         Mission firstChoiceQuiz = missionCaptor.getAllValues().stream()
                 .filter(mission -> mission.getMissionType() == MissionType.QUIZ_CHOICE)
@@ -84,6 +84,27 @@ class CourseSeedServiceTest {
             }
         }
         assertThat(correctCount).isEqualTo(1);
+    }
+
+    @Test
+    void 아직_없는_코스만_추가로_등록한다() {
+        when(courseRepository.existsByTitle(anyString()))
+                .thenAnswer(invocation -> !"하루 만에 서해 낙조를 훔쳐라".equals(invocation.getArgument(0)));
+        when(tourismSpotRepository.findByOpenApiContentId(anyString())).thenReturn(Optional.empty());
+        when(tourismSpotRepository.save(any(TourismSpot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseSpotRepository.save(any(CourseSpot.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(missionRepository.save(any(Mission.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseSeedService service = new CourseSeedService(
+                courseRepository, courseSpotRepository, missionRepository, tourismSpotRepository, objectMapper);
+
+        service.seedIfNeeded();
+
+        // 당일치기 코스 1개(스팟 4개)만 등록되고, 그 코스가 쓰는 관광지 4곳만 생성된다.
+        verify(courseRepository, times(1)).save(any(Course.class));
+        verify(courseSpotRepository, times(4)).save(any(CourseSpot.class));
+        verify(tourismSpotRepository, times(4)).save(any(TourismSpot.class));
     }
 
     @Test

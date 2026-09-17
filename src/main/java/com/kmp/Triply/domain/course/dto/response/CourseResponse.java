@@ -1,10 +1,14 @@
 package com.kmp.Triply.domain.course.dto.response;
 
 import com.kmp.Triply.domain.course.entity.Course;
+import com.kmp.Triply.domain.course.entity.CourseTag;
 import com.kmp.Triply.domain.course.entity.CourseType;
 import com.kmp.Triply.domain.course.entity.Difficulty;
+import com.kmp.Triply.domain.course.entity.IndoorType;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.util.List;
 
 @Getter
 @Builder
@@ -18,6 +22,9 @@ public class CourseResponse {
     private Difficulty difficulty;
     private int estimatedMinutes;
     private CourseType courseType;
+    /** INDOOR / MIXED / OUTDOOR. 비 오는 날 무엇을 추천할지 가르는 기준. */
+    private IndoorType indoorType;
+    private List<CourseTag> tags;
     private boolean isActive;
 
     public static CourseResponse from(Course course) {
@@ -30,6 +37,8 @@ public class CourseResponse {
                 .difficulty(course.getDifficulty())
                 .estimatedMinutes(course.getEstimatedMinutes())
                 .courseType(course.getCourseType())
+                .indoorType(course.getIndoorType())
+                .tags(List.copyOf(course.getTags()))
                 .isActive(course.isActive())
                 .build();
     }

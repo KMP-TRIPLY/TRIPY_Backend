@@ -8,4 +8,6 @@ import java.util.List;
 public interface CourseSpotRepository extends JpaRepository<CourseSpot, Long> {
 
     List<CourseSpot> findAllByCourseIdOrderBySequenceOrderAsc(Long courseId);
+
+    long countByCourseId(Long courseId);
 }

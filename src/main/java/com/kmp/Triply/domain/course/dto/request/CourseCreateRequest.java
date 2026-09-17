@@ -1,12 +1,17 @@
 package com.kmp.Triply.domain.course.dto.request;
 
+import com.kmp.Triply.domain.course.entity.CourseTag;
 import com.kmp.Triply.domain.course.entity.CourseType;
 import com.kmp.Triply.domain.course.entity.Difficulty;
+import com.kmp.Triply.domain.course.entity.IndoorType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Getter
 public class CourseCreateRequest {
@@ -36,4 +41,11 @@ public class CourseCreateRequest {
 
     @NotNull
     private CourseType courseType = CourseType.GENERAL;
+
+    /** 비워 두면 MIXED. 비 오는 날 추천에서 빠지지 않게 하려면 정확히 넣는 편이 좋다. */
+    @NotNull
+    private IndoorType indoorType = IndoorType.MIXED;
+
+    /** 상황·취향 태그. 비워 둘 수 있다. */
+    private Set<CourseTag> tags = new LinkedHashSet<>();
 }

@@ -45,9 +45,14 @@ public class CourseSpot {
     @Column(name = "radius_meters", nullable = false)
     private int radiusMeters = 200;
 
+    /** 관람이 실내에서 이뤄지는 스팟인지. 비 오는 날 이 스팟만 추려 보여줄 수 있다. */
+    @Column(name = "is_indoor", nullable = false)
+    private boolean indoor = false;
+
     @Builder
     private CourseSpot(Course course, TourismSpot tourismSpot, short sequenceOrder,
-                       String storyText, BigDecimal lat, BigDecimal lng, int radiusMeters) {
+                       String storyText, BigDecimal lat, BigDecimal lng, int radiusMeters,
+                       boolean indoor) {
         this.course = course;
         this.tourismSpot = tourismSpot;
         this.sequenceOrder = sequenceOrder;
@@ -55,5 +60,6 @@ public class CourseSpot {
         this.lat = lat;
         this.lng = lng;
         this.radiusMeters = radiusMeters;
+        this.indoor = indoor;
     }
 }

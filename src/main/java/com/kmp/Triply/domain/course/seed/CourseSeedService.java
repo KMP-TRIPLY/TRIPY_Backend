@@ -4,14 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.entity.CourseSpot;
+import com.kmp.Triply.domain.course.entity.CourseTag;
 import com.kmp.Triply.domain.course.entity.CourseType;
 import com.kmp.Triply.domain.course.entity.Difficulty;
+import com.kmp.Triply.domain.course.entity.IndoorType;
 import com.kmp.Triply.domain.course.entity.Mission;
-import com.kmp.Triply.domain.course.entity.MissionType;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
 import com.kmp.Triply.domain.course.repository.CourseSpotRepository;
 import com.kmp.Triply.domain.course.repository.MissionRepository;
-import com.kmp.Triply.domain.tourism.entity.SpotCategory;
 import com.kmp.Triply.domain.tourism.entity.TourismSpot;
 import com.kmp.Triply.domain.tourism.repository.TourismSpotRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +24,19 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.kmp.Triply.domain.course.seed.SeedMissions.choice;
+import static com.kmp.Triply.domain.course.seed.SeedMissions.choiceQuiz;
+import static com.kmp.Triply.domain.course.seed.SeedMissions.oxQuiz;
+import static com.kmp.Triply.domain.course.seed.SeedMissions.photo;
+import static com.kmp.Triply.domain.course.seed.SeedMissions.textQuiz;
 
 /**
- * 공주·부여 백제 역사 코스(스토리 A/B/C)의 스팟·미션(퀴즈) 데이터를 최초 1회 등록한다.
+ * 충남 코스(백제 역사 스토리 A/B/C + 일정별 당일치기/1박 2일/2박 3일)의 스팟·미션 데이터를 등록한다.
  * app.seed.enabled=true 일 때 {@link CourseSeedRunner}가 애플리케이션 기동 시 호출한다.
+ * 코스 단위로 제목 중복을 확인하므로, 코스를 추가한 뒤 다시 기동하면 새 코스만 추가된다.
  */
 @Slf4j
 @Service
@@ -45,45 +54,50 @@ public class CourseSeedService {
 
     @Transactional
     public void seedIfNeeded() {
-        List<StoryDef> stories = stories();
-        boolean alreadySeeded = stories.stream().anyMatch(story -> courseRepository.existsByTitle(story.title()));
-        if (alreadySeeded) {
-            log.info("백제 역사 코스 시드 데이터가 이미 존재합니다. 시딩을 건너뜁니다.");
+        List<StoryDef> pending = stories().stream()
+                .filter(story -> !courseRepository.existsByTitle(story.title()))
+                .toList();
+        if (pending.isEmpty()) {
+            log.info("코스 시드 데이터가 이미 모두 존재합니다. 시딩을 건너뜁니다.");
             return;
         }
 
-        Map<String, TourismSpot> spotsByKey = ensureTourismSpots();
-        stories.forEach(story -> seedStory(story, spotsByKey));
-        log.info("백제 역사 코스(스토리 A/B/C) 시드 데이터 {}건을 등록했습니다.", stories.size());
+        Map<String, TourismSpot> spotsByKey = ensureTourismSpots(pending);
+        pending.forEach(story -> seedStory(story, spotsByKey));
+        log.info("코스 시드 데이터 {}건을 등록했습니다: {}",
+                pending.size(), pending.stream().map(StoryDef::title).toList());
     }
 
-    private Map<String, TourismSpot> ensureTourismSpots() {
+    /** 등록 대상 코스가 실제로 참조하는 관광지만 생성한다. */
+    private Map<String, TourismSpot> ensureTourismSpots(List<StoryDef> pending) {
+        Set<String> usedKeys = pending.stream()
+                .flatMap(story -> story.spots().stream())
+                .map(SpotDef::siteKey)
+                .collect(Collectors.toSet());
+
         Map<String, TourismSpot> result = new LinkedHashMap<>();
-        result.put("GONGSANSEONG", ensureTourismSpot(
-                "MANUAL-GONGSANSEONG", "공산성", "충청남도 공주시 금성동 65-3",
-                BigDecimal.valueOf(36.4585), BigDecimal.valueOf(127.1229)));
-        result.put("MAGOKSA", ensureTourismSpot(
-                "MANUAL-MAGOKSA", "마곡사", "충청남도 공주시 사곡면 마곡사로 966",
-                BigDecimal.valueOf(36.5405), BigDecimal.valueOf(127.0132)));
-        result.put("JEONGNIMSAJI", ensureTourismSpot(
-                "MANUAL-JEONGNIMSAJI", "정림사지", "충청남도 부여군 부여읍 정림로 83",
-                BigDecimal.valueOf(36.2762), BigDecimal.valueOf(126.9098)));
-        result.put("GUNGNAMJI", ensureTourismSpot(
-                "MANUAL-GUNGNAMJI", "궁남지", "충청남도 부여군 부여읍 궁남로 52",
-                BigDecimal.valueOf(36.2681), BigDecimal.valueOf(126.9209)));
+        SeedSites.all().stream()
+                .filter(site -> usedKeys.contains(site.siteKey()))
+                .forEach(site -> result.put(site.siteKey(), ensureTourismSpot(site)));
+
+        usedKeys.stream()
+                .filter(key -> !result.containsKey(key))
+                .findFirst()
+                .ifPresent(key -> {
+                    throw new IllegalStateException("SeedSites 에 정의되지 않은 관광지 키입니다: " + key);
+                });
         return result;
     }
 
-    private TourismSpot ensureTourismSpot(String contentId, String name, String address, BigDecimal lat, BigDecimal lng) {
-        return tourismSpotRepository.findByOpenApiContentId(contentId)
+    private TourismSpot ensureTourismSpot(SiteDef site) {
+        return tourismSpotRepository.findByOpenApiContentId(site.contentId())
                 .orElseGet(() -> tourismSpotRepository.save(TourismSpot.builder()
-
-                        .openApiContentId(contentId)
-                        .name(name)
-                        .category(SpotCategory.HERITAGE)
-                        .address(address)
-                        .lat(lat)
-                        .lng(lng)
+                        .openApiContentId(site.contentId())
+                        .name(site.name())
+                        .category(site.category())
+                        .address(site.address())
+                        .lat(site.lat())
+                        .lng(site.lng())
                         .areaCode(REGION_CODE)
                         .rank(null)
                         .build()));
@@ -95,9 +109,11 @@ public class CourseSeedService {
                 .description(story.description())
                 .regionCode(REGION_CODE)
                 .city(story.city())
-                .difficulty(Difficulty.NORMAL)
-                .estimatedMinutes(180)
+                .difficulty(story.difficulty())
+                .estimatedMinutes(story.estimatedMinutes())
                 .courseType(CourseType.GENERAL)
+                .indoorType(story.indoorType())
+                .tags(story.tags())
                 .isAiGenerated(false)
                 .createdBy(null)
                 .build());
@@ -111,6 +127,7 @@ public class CourseSeedService {
                     .lat(spotDef.lat())
                     .lng(spotDef.lng())
                     .radiusMeters(spotDef.radiusMeters())
+                    .indoor(spotDef.indoor())
                     .build());
 
             spotDef.missions().forEach(missionDef -> missionRepository.save(Mission.builder()
@@ -148,7 +165,10 @@ public class CourseSeedService {
     // ===== 스토리 A/B/C 원본 콘텐츠 =====
 
     private List<StoryDef> stories() {
-        return List.of(storyA(), storyB(), storyC());
+        List<StoryDef> all = new ArrayList<>(List.of(storyA(), storyB(), storyC()));
+        all.addAll(ChungnamDayTripStories.stories());
+        all.addAll(ChungnamIndoorStories.stories());
+        return List.copyOf(all);
     }
 
     private StoryDef storyA() {
@@ -156,6 +176,10 @@ public class CourseSeedService {
                 "백제 무령왕의 왕실 인장을 찾아라",
                 "백제 무령왕의 왕실 인장이 사라졌다. 역사 탐정인 당신은 공주와 부여에 흩어진 단서를 모아 인장의 행방을 밝혀야 한다.",
                 "공주·부여",
+                Difficulty.NORMAL,
+                180,
+                IndoorType.MIXED,
+                Set.of(CourseTag.HISTORY, CourseTag.PHOTO_SPOT),
                 List.of(
                         new SpotDef("GONGSANSEONG", (short) 1,
                                 "첫 번째 단서는 백제가 웅진으로 천도한 이유 속에 숨어있다. 성벽 위에서 금강을 바라보며 왕이 이 땅을 선택한 이유를 찾아라. "
@@ -205,6 +229,10 @@ public class CourseSeedService {
                 "백제 마지막 왕의 원혼이 남긴 수수께끼",
                 "백제 의자왕의 원혼이 천 년 넘게 공주와 부여를 떠돌고 있다. 원혼을 달래기 위해 그가 남긴 수수께끼를 풀어라.",
                 "공주·부여",
+                Difficulty.NORMAL,
+                180,
+                IndoorType.MIXED,
+                Set.of(CourseTag.HISTORY, CourseTag.PHOTO_SPOT),
                 List.of(
                         new SpotDef("GONGSANSEONG", (short) 1,
                                 "의자왕의 원혼이 속삭인다. '나의 선조가 이 성을 쌓은 이유를 아는 자만이 첫 번째 봉인을 풀 수 있다.' "
@@ -252,6 +280,10 @@ public class CourseSeedService {
                 "백제 부흥군의 비밀 작전을 완수하라",
                 "백제 멸망 후 부흥군이 숨겨둔 비밀 무기고의 위치가 담긴 지도가 발견됐다. 당신은 부흥군의 후예로서 작전을 완수해야 한다.",
                 "공주·부여",
+                Difficulty.NORMAL,
+                180,
+                IndoorType.MIXED,
+                Set.of(CourseTag.HISTORY, CourseTag.PHOTO_SPOT),
                 List.of(
                         new SpotDef("GONGSANSEONG", (short) 1,
                                 "작전 브리핑: 백제 부흥군이 최후 항전을 준비했던 요새. 성벽을 순찰하며 적군(나당연합군)의 동태를 파악하라. "
@@ -296,46 +328,5 @@ public class CourseSeedService {
                                         textQuiz("궁남지 인공섬 위에 세워진 정자 이름은?", "포룡정"),
                                         photo("포룡정 앞에서 작전 완수 승리 포즈로 팀 전원 인증샷")))
                 ));
-    }
-
-    // ===== 미션 정의 헬퍼 =====
-
-    private static MissionDef choiceQuiz(String question, String hint, ChoiceDef... choices) {
-        return new MissionDef(MissionType.QUIZ_CHOICE, question, null, List.of(choices), hint, 150, 300);
-    }
-
-    private static MissionDef oxQuiz(String question, boolean answerIsO, String hint) {
-        return new MissionDef(MissionType.QUIZ_CHOICE, question, null,
-                List.of(choice("O", "O", answerIsO), choice("X", "X", !answerIsO)), hint, 100, 200);
-    }
-
-    private static MissionDef textQuiz(String question, String answer) {
-        return new MissionDef(MissionType.QUIZ_TEXT, question, answer, null, null, 150, 300);
-    }
-
-    private static MissionDef photo(String question) {
-        return new MissionDef(MissionType.PHOTO, question, null, null, null, 0, 100);
-    }
-
-    private static ChoiceDef choice(String label, String value, boolean correct) {
-        return new ChoiceDef(label, value, correct);
-    }
-
-    // ===== 시드 전용 내부 모델 =====
-
-    private record ChoiceDef(String label, String value, boolean correct) {
-    }
-
-    private record MissionDef(
-            MissionType type, String question, String answer,
-            List<ChoiceDef> choices, String hint, int hintPenalty, int baseScore) {
-    }
-
-    private record SpotDef(
-            String siteKey, short sequenceOrder, String storyText,
-            BigDecimal lat, BigDecimal lng, int radiusMeters, List<MissionDef> missions) {
-    }
-
-    private record StoryDef(String title, String description, String city, List<SpotDef> spots) {
     }
 }
