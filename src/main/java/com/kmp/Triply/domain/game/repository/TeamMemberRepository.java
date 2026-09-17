@@ -1,8 +1,10 @@
 package com.kmp.Triply.domain.game.repository;
 
+import com.kmp.Triply.domain.game.entity.GameStatus;
 import com.kmp.Triply.domain.game.entity.TeamMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,6 +13,10 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     List<TeamMember> findAllByTeamId(Long teamId);
 
     List<TeamMember> findByUserIdOrderByJoinedAtDesc(Long userId);
+
+    /** 내가 아직 활동 중인 멤버로 남아 있고, 아직 끝나지 않은 방. 앱을 다시 켰을 때 돌아갈 곳이다. */
+    List<TeamMember> findAllByUserIdAndIsActiveTrueAndTeamGameRoomStatusInOrderByTeamGameRoomCreatedAtDesc(
+            Long userId, Collection<GameStatus> statuses);
 
     Optional<TeamMember> findByTeamGameRoomIdAndUserId(Long gameRoomId, Long userId);
 

@@ -3,6 +3,7 @@ package com.kmp.Triply.domain.course.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kmp.Triply.domain.course.RegionCode;
+import com.kmp.Triply.domain.course.WeatherCondition;
 import com.kmp.Triply.domain.course.dto.request.CourseCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.CourseSpotCreateRequest;
 import com.kmp.Triply.domain.course.dto.request.MissionCreateRequest;
@@ -15,6 +16,8 @@ import com.kmp.Triply.domain.course.dto.response.MissionChoiceResponse;
 import com.kmp.Triply.domain.course.dto.response.MissionResponse;
 import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.entity.CourseSpot;
+import com.kmp.Triply.domain.course.entity.CourseTag;
+import com.kmp.Triply.domain.course.entity.IndoorType;
 import com.kmp.Triply.domain.course.entity.Mission;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
 import com.kmp.Triply.domain.course.repository.CourseSpotRepository;
@@ -31,8 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -62,6 +67,8 @@ public class CourseServiceImpl implements CourseService {
                 .difficulty(request.getDifficulty())
                 .estimatedMinutes(request.getEstimatedMinutes())
                 .courseType(request.getCourseType())
+                .indoorType(request.getIndoorType())
+                .tags(request.getTags())
                 .isAiGenerated(false)
                 .createdBy(creator)
                 .build();
@@ -85,11 +92,63 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new CustomException(ErrorCode.REGION_NOT_RESOLVED));
     }
 
+    /**
+     * 지역·도시는 쿼리로 좁히고, 실내 여부와 태그는 가져온 뒤 거른다.
+     * 코스 카탈로그는 수십 건 규모라 이쪽이 조건 조합마다 쿼리를 늘리는 것보다 단순하다.
+     */
     @Override
-    public List<CourseResponse> getCourses(String regionCode, String city) {
+    public List<CourseResponse> getCourses(String regionCode, String city,
+                                           IndoorType indoorType, Set<CourseTag> tags) {
+        Set<CourseTag> requiredTags = tags == null ? Set.of() : tags;
         return courseRepository.findActiveCourses(regionCode, city).stream()
+                .filter(course -> indoorType == null || course.getIndoorType() == indoorType)
+                .filter(course -> course.getTags().containsAll(requiredTags))
                 .map(CourseResponse::from)
                 .toList();
+    }
+
+    /**
+     * 날씨에 맞는 코스 추천. 비·눈·폭염·한파에는 전부 야외인 코스를 빼고,
+     * 남은 것 중 실내 비중이 높고 해당 상황 태그가 붙은 코스를 앞에 세운다.
+     */
+    @Override
+    public List<CourseResponse> recommendCourses(String regionCode, WeatherCondition weather) {
+        WeatherCondition condition = weather == null ? WeatherCondition.CLEAR : weather;
+        return courseRepository.findActiveCourses(regionCode, null).stream()
+                .filter(course -> fitsWeather(course, condition))
+                // 정렬은 안정적이라 점수가 같으면 조회 순서(최신순)가 그대로 유지된다.
+                .sorted(Comparator.comparingInt((Course course) -> weatherScore(course, condition)).reversed())
+                .map(CourseResponse::from)
+                .toList();
+    }
+
+    private boolean fitsWeather(Course course, WeatherCondition weather) {
+        return switch (weather) {
+            case RAIN, SNOW, HOT, COLD -> course.getIndoorType() != IndoorType.OUTDOOR;
+            case CLEAR -> true;
+        };
+    }
+
+    private int weatherScore(Course course, WeatherCondition weather) {
+        int score = 0;
+        CourseTag weatherTag = weatherTag(weather);
+        if (weatherTag != null && course.getTags().contains(weatherTag)) {
+            score += 10;
+        }
+        score += switch (weather) {
+            case RAIN, SNOW, HOT, COLD -> course.getIndoorType() == IndoorType.INDOOR ? 5 : 0;
+            case CLEAR -> course.getIndoorType() == IndoorType.OUTDOOR ? 5 : 0;
+        };
+        return score;
+    }
+
+    private CourseTag weatherTag(WeatherCondition weather) {
+        return switch (weather) {
+            case RAIN, SNOW -> CourseTag.RAINY_DAY;
+            case HOT -> CourseTag.HOT_DAY;
+            case COLD -> CourseTag.COLD_DAY;
+            case CLEAR -> null;
+        };
     }
 
     @Override
@@ -133,6 +192,7 @@ public class CourseServiceImpl implements CourseService {
                 .lat(request.getLat())
                 .lng(request.getLng())
                 .radiusMeters(request.getRadiusMeters())
+                .indoor(request.isIndoor())
                 .build();
 
         return CourseSpotResponse.from(courseSpotRepository.save(courseSpot), Collections.emptyList());

@@ -1,8 +1,10 @@
 package com.kmp.Triply.domain.course.dto.response;
 
 import com.kmp.Triply.domain.course.entity.Course;
+import com.kmp.Triply.domain.course.entity.CourseTag;
 import com.kmp.Triply.domain.course.entity.CourseType;
 import com.kmp.Triply.domain.course.entity.Difficulty;
+import com.kmp.Triply.domain.course.entity.IndoorType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -20,6 +22,8 @@ public class CourseDetailResponse {
     private Difficulty difficulty;
     private int estimatedMinutes;
     private CourseType courseType;
+    private IndoorType indoorType;
+    private List<CourseTag> tags;
     private boolean isActive;
     private List<CourseSpotResponse> spots;
 
@@ -33,6 +37,8 @@ public class CourseDetailResponse {
                 .difficulty(course.getDifficulty())
                 .estimatedMinutes(course.getEstimatedMinutes())
                 .courseType(course.getCourseType())
+                .indoorType(course.getIndoorType())
+                .tags(List.copyOf(course.getTags()))
                 .isActive(course.isActive())
                 .spots(spots)
                 .build();

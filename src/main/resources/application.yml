@@ -112,6 +112,11 @@ game:
   room:
     host-delegation-timeout-minutes: ${GAME_ROOM_HOST_DELEGATION_TIMEOUT_MINUTES:5}
     host-delegation-check-delay-ms: ${GAME_ROOM_HOST_DELEGATION_CHECK_DELAY_MS:60000}
+    # 방치된 방 정리. 코스가 모두 당일치기라 하루를 넘긴 방은 끝난 것으로 본다.
+    # 0 이하로 두면 해당 정리를 끄고, 방은 수동으로 끝날 때까지 남는다.
+    waiting-expire-hours: ${GAME_ROOM_WAITING_EXPIRE_HOURS:6}
+    running-expire-hours: ${GAME_ROOM_RUNNING_EXPIRE_HOURS:24}
+    cleanup-check-delay-ms: ${GAME_ROOM_CLEANUP_CHECK_DELAY_MS:300000}
 
 # ===== 미션 사진 인증 =====
 # 저장소: OCI Object Storage 의 S3 호환 API. 값이 비어 있으면 사진 미션 제출이 503 으로 거부된다.

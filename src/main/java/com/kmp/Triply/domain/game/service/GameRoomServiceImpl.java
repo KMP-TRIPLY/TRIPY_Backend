@@ -2,6 +2,7 @@ package com.kmp.Triply.domain.game.service;
 
 import com.kmp.Triply.domain.course.entity.Course;
 import com.kmp.Triply.domain.course.repository.CourseRepository;
+import com.kmp.Triply.domain.course.repository.CourseSpotRepository;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCourseChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomCreateRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
@@ -9,6 +10,7 @@ import com.kmp.Triply.domain.game.dto.request.GameRoomMaxMembersChangeRequest;
 
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
+import com.kmp.Triply.domain.game.dto.response.ActiveGameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
@@ -17,9 +19,11 @@ import com.kmp.Triply.domain.game.dto.response.TeamMemberResponse;
 import com.kmp.Triply.domain.game.entity.GameMode;
 import com.kmp.Triply.domain.game.entity.GameRoom;
 import com.kmp.Triply.domain.game.entity.GameStatus;
+import com.kmp.Triply.domain.game.entity.ProgressStatus;
 import com.kmp.Triply.domain.game.entity.Team;
 import com.kmp.Triply.domain.game.entity.TeamLeaveHistory;
 import com.kmp.Triply.domain.game.entity.TeamMember;
+import com.kmp.Triply.domain.game.repository.GameProgressRepository;
 import com.kmp.Triply.domain.game.repository.GameRoomRepository;
 import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
 import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
@@ -58,12 +62,14 @@ public class GameRoomServiceImpl implements GameRoomService {
     private static final int ROOM_CODE_LENGTH = 6;
 
     private final GameRoomRepository gameRoomRepository;
+    private final GameProgressRepository gameProgressRepository;
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamLeaveHistoryRepository teamLeaveHistoryRepository;
     private final MissionAttemptRepository missionAttemptRepository;
     private final RankingRepository rankingRepository;
     private final CourseRepository courseRepository;
+    private final CourseSpotRepository courseSpotRepository;
     private final UserRepository userRepository;
     private final UserTravelProfileRepository userTravelProfileRepository;
     private final GameRoomRealtimeNotifier realtimeNotifier;
@@ -74,6 +80,12 @@ public class GameRoomServiceImpl implements GameRoomService {
 
     @Value("${game.room.host-delegation-timeout-minutes:5}")
     private long hostDelegationTimeoutMinutes;
+
+    @Value("${game.room.waiting-expire-hours:6}")
+    private long waitingExpireHours;
+
+    @Value("${game.room.running-expire-hours:24}")
+    private long runningExpireHours;
 
     @Override
     @Transactional
@@ -148,6 +160,31 @@ public class GameRoomServiceImpl implements GameRoomService {
                         (GameRoom) row[0],
                         (String) row[1],
                         ((Number) row[2]).longValue()))
+                .toList();
+    }
+
+    /**
+     * 내가 아직 끝내지 않은 방. 앱을 껐다 켜거나 기기를 바꾸면 roomId 를 들고 있지 않은데,
+     * 대기 중인 방 목록에는 진행 중(RUNNING)인 방이 나오지 않아 돌아갈 길이 없다 — 그 통로다.
+     * 보통 0~1 건이라 방마다 인원·진행도를 따로 세도 부담이 없다.
+     */
+    @Override
+    public List<ActiveGameRoomResponse> getMyActiveRooms(Long userId) {
+        return teamMemberRepository
+                .findAllByUserIdAndIsActiveTrueAndTeamGameRoomStatusInOrderByTeamGameRoomCreatedAtDesc(
+                        userId, List.of(GameStatus.WAITING, GameStatus.RUNNING))
+                .stream()
+                .map(member -> {
+                    Team team = member.getTeam();
+                    GameRoom room = team.getGameRoom();
+                    return ActiveGameRoomResponse.of(
+                            room,
+                            team,
+                            userId,
+                            teamMemberRepository.countByTeamGameRoomIdAndIsActiveTrue(room.getId()),
+                            courseSpotRepository.countByCourseId(room.getCourse().getId()),
+                            gameProgressRepository.countByTeamIdAndStatus(team.getId(), ProgressStatus.COMPLETED));
+                })
                 .toList();
     }
 
@@ -278,8 +315,15 @@ public class GameRoomServiceImpl implements GameRoomService {
         if (gameRoom.getStatus() != GameStatus.RUNNING) {
             throw new CustomException(ErrorCode.INVALID_GAME_ROOM_STATUS);
         }
+        return finishRoom(gameRoom, "ROOM_FINISHED", "게임이 종료되고 점수가 잠겼습니다.");
+    }
 
-        List<Object[]> teamRankingRows = teamRepository.findTeamRankingRowsByGameRoomId(roomId);
+    /**
+     * 순위 확정 → 방 종료 → 보상 적립. 방장이 끝내든 방치돼 자동으로 끝나든 정산 과정은 같아야 해서 한곳에 둔다.
+     * 그때까지 낸 점수로 순위를 매기므로, 자동 종료라고 해서 점수가 사라지지는 않는다.
+     */
+    private GameRoomResponse finishRoom(GameRoom gameRoom, String eventType, String message) {
+        List<Object[]> teamRankingRows = teamRepository.findTeamRankingRowsByGameRoomId(gameRoom.getId());
         for (int index = 0; index < teamRankingRows.size(); index++) {
             Team team = (Team) teamRankingRows.get(index)[0];
             team.finish((short) (index + 1));
@@ -291,7 +335,7 @@ public class GameRoomServiceImpl implements GameRoomService {
         rewardService.settleFinishedRoom(gameRoom.getId());
 
         GameRoomResponse response = GameRoomResponse.from(gameRoom);
-        realtimeNotifier.publish(gameRoom.getId(), "ROOM_FINISHED", "게임이 종료되고 점수가 잠겼습니다.", response);
+        realtimeNotifier.publish(gameRoom.getId(), eventType, message, response);
         return response;
     }
 
@@ -381,6 +425,32 @@ public class GameRoomServiceImpl implements GameRoomService {
     private void validateHost(GameRoom gameRoom, Long userId) {
         if (!gameRoom.getHost().getId().equals(userId)) {
             throw new CustomException(ErrorCode.GAME_ROOM_ACCESS_DENIED);
+        }
+    }
+
+    /**
+     * 방치된 방 정리. 코스가 모두 당일치기라 하루를 넘겨 살아 있는 방은 끝났다고 봐도 된다.
+     * 대기실은 아무 점수도 없으니 그냥 취소하고, 진행 중이던 방은 그때까지의 점수로 정산해 종료한다 —
+     * 방장이 종료 버튼을 못 눌렀다는 이유로 팀이 낸 점수를 버릴 이유는 없다.
+     */
+    @Scheduled(fixedDelayString = "${game.room.cleanup-check-delay-ms:300000}")
+    @Transactional
+    public void expireStaleRooms() {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (waitingExpireHours > 0) {
+            gameRoomRepository.findStaleWaitingRooms(now.minusHours(waitingExpireHours))
+                    .forEach(gameRoom -> {
+                        gameRoom.cancel();
+                        realtimeNotifier.publish(gameRoom.getId(), "ROOM_AUTO_CANCELLED",
+                                "오래 시작되지 않아 게임 방이 자동으로 취소되었습니다.", GameRoomResponse.from(gameRoom));
+                    });
+        }
+
+        if (runningExpireHours > 0) {
+            gameRoomRepository.findStaleRunningRooms(now.minusHours(runningExpireHours))
+                    .forEach(gameRoom -> finishRoom(gameRoom, "ROOM_AUTO_FINISHED",
+                            "오래 종료되지 않아 게임이 자동으로 종료되고 점수가 잠겼습니다."));
         }
     }
 

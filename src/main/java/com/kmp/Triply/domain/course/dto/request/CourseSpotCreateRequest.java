@@ -26,4 +26,7 @@ public class CourseSpotCreateRequest {
     private BigDecimal lng;
 
     private int radiusMeters = 200;
+
+    /** 실내 관람 스팟인지. */
+    private boolean indoor = false;
 }
