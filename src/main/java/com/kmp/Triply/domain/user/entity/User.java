@@ -86,4 +86,18 @@ public class User {
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
+
+    /**
+     * 탈퇴한 계정에서 소셜 연결과 이메일을 떼어낸다.
+     *
+     * <p>email 과 social_id 는 유니크라 자리를 비워야 같은 소셜 계정으로 다시 가입할 수 있다.
+     * 행 자체는 지우지 않는다 — 게임 기록·랭킹·리워드가 user_id 를 참조하고 있어서
+     * 지우면 남은 팀원들의 과거 기록까지 깨진다. 남는 건 익명 껍데기다.
+     */
+    public void releaseSocialIdentity() {
+        this.socialId = "withdrawn_" + this.id;
+        this.email = "withdrawn_" + this.id + "@triply.invalid";
+        this.nickname = "탈퇴한 사용자";
+        this.profileImg = null;
+    }
 }

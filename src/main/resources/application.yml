@@ -103,6 +103,10 @@ app:
     authorization-request-ttl-seconds: ${APP_OAUTH2_AUTH_REQUEST_TTL_SECONDS:300}
   seed:
     enabled: ${APP_SEED_ENABLED:false}
+  withdrawal:
+    # 탈퇴 후 이 기간이 지나야 같은 소셜 계정으로 다시 가입할 수 있다.
+    # 재가입은 새 계정이며 예전 여행 코스·리워드·기록은 따라오지 않는다.
+    rejoin-wait-days: ${APP_WITHDRAWAL_REJOIN_WAIT_DAYS:7}
 
 game:
   room:
