@@ -1,6 +1,6 @@
 package com.kmp.Triply.domain.game.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -13,7 +13,7 @@ class PhotoVerificationServiceTest {
 
     private static final double THRESHOLD = 0.7;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     @Test
     void 확신이_임계값_이상인_통과만_통과시킨다() throws Exception {
