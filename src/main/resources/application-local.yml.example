@@ -37,3 +37,8 @@ tourism:
 app:
   seed:
     enabled: true
+
+# 미션 사진 AI 인증(OpenAI Vision) 키는 이 파일이 아니라 프로젝트 루트 .env 에 둔다.
+# 운영 서버와 같은 변수 이름을 쓰고, 프로필과 무관하게 읽힌다.
+#   OPENAI_API_KEY=sk-...
+# 키가 없으면 사진 미션 제출이 503 으로 막힌다. 판정 없이 굴리려면 MISSION_PHOTO_AI_ENABLED=false 로 명시한다.

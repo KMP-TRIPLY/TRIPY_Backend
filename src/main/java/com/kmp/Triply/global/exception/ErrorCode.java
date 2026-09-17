@@ -66,6 +66,7 @@ public enum ErrorCode {
     NOT_PHOTO_MISSION(HttpStatus.BAD_REQUEST, "사진으로 제출할 수 없는 미션입니다."),
     INVALID_PHOTO(HttpStatus.BAD_REQUEST, "이미지 파일이 아니거나 허용 크기를 넘었습니다."),
     PHOTO_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "사진 저장소를 사용할 수 없습니다."),
+    PHOTO_VERIFICATION_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "사진 인증 판정을 할 수 없습니다. 잠시 후 다시 제출해주세요."),
 
     // Reward
     COUPON_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰을 찾을 수 없습니다."),

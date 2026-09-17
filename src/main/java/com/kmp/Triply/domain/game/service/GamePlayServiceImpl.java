@@ -205,8 +205,10 @@ public class GamePlayServiceImpl implements GamePlayService {
         // 업로드·AI 호출은 비싸다. 팀원·진행중·도착인증·중복 검사를 모두 통과한 뒤에만 부른다.
         Submission submission = validateSubmission(userId, missionId, roomId, mission);
 
-        String photoKey = photoStorage.upload(image, contentType, missionId, submission.team().getId());
+        // 판정을 못 하면 503 으로 돌려보내므로 판정을 먼저 한다 — 그래야 아무 데도 안 쓰이는 사진이 저장소에 남지 않는다.
+        // 오답으로 판정돼도 사진은 올린다. 이의 제기 때 원본이 있어야 한다.
         PhotoVerdict verdict = photoVerifier.verify(image, contentType, mission);
+        String photoKey = photoStorage.upload(image, contentType, missionId, submission.team().getId());
         return record(submission, verdict.passed(), null, photoKey, verdict.note());
     }
 
