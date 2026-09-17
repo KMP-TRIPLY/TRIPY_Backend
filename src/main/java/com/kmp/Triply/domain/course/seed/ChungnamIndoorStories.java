@@ -36,8 +36,9 @@ final class ChungnamIndoorStories {
     private static StoryDef buyeoIndoor() {
         return new StoryDef(
                 "비 오는 날의 사비",
-                "비가 와서 부소산에 못 오르는 날. 그래도 사비는 실내에 다 들어와 있다. "
-                        + "박물관 세 곳에 나뉘어 전시된 백제의 조각을 이어 붙여 하루를 완성하라. 우산은 이동할 때만 쓴다.",
+                "사비의 하루가 비에 잠겼다. 부소산에 오르지 못하는 날, 백제의 조각은 모두 지붕 아래로 물러나 있다. "
+                        + "박물관 세 곳에 나뉘어 놓인 조각을 이어 붙여 사라진 하루를 복원하라. "
+                        + "우산은 옮겨 갈 때만 펴면 된다.",
                 "부여",
                 Difficulty.EASY,
                 360,
@@ -85,8 +86,8 @@ final class ChungnamIndoorStories {
     private static StoryDef seocheonIndoor() {
         return new StoryDef(
                 "빗속의 금강 하구 표본실",
-                "밖은 비, 안은 열대. 건물 두 채만으로 지구의 기후대와 바닷속을 다 지나간다. "
-                        + "우산 쓰는 시간이 가장 짧은 코스다.",
+                "밖은 비, 안은 열대다. 건물 두 채 안에 지구의 기후대와 서해 바닷속이 통째로 들어와 있다. "
+                        + "비 한 방울 맞지 않고 두 세계를 건너 표본을 모아라.",
                 "서천",
                 Difficulty.EASY,
                 300,
@@ -123,8 +124,8 @@ final class ChungnamIndoorStories {
     private static StoryDef cheonanAsanIndoor() {
         return new StoryDef(
                 "우산 쓰고 가는 겨레의 기억",
-                "야외 조형물은 다음에 보기로 하고, 오늘은 전시관 안으로만 걷는다. "
-                        + "근대의 기억과 옛사람의 살림살이를 하루에 이어 본다.",
+                "비가 야외 조형물을 지워 버린 날. 겨레의 기억은 전시관 안으로 물러나 있다. "
+                        + "근대가 남긴 기록과 옛사람이 쓰던 살림살이, 지붕 아래 남은 두 조각을 차례로 이어 붙여라.",
                 "천안·아산",
                 Difficulty.EASY,
                 330,
@@ -132,7 +133,7 @@ final class ChungnamIndoorStories {
                 union(ALL_WEATHER, CourseTag.HISTORY),
                 List.of(
                         new SpotDef("INDEPENDENCE_HALL", (short) 1,
-                                "전시관 안에서 시작한다. 겨레의 집을 지나 전시관을 차례로 돌면 비를 맞을 일이 없다.",
+                                "지붕 아래에서 시작한다. 겨레의 집을 지나 전시관을 차례로 돌면, 오늘은 한 번도 비를 맞지 않는다.",
                                 BigDecimal.valueOf(36.7826), BigDecimal.valueOf(127.2226), 250, true,
                                 List.of(
                                         choiceQuiz("독립기념관이 문을 연 해는?", "광복절에 개관했습니다.",
@@ -143,7 +144,7 @@ final class ChungnamIndoorStories {
                                         textQuiz("독립기념관의 중심 건물로, 겨레의 얼을 상징하는 대형 전시관의 이름은?", "겨레의 집"),
                                         photo("전시관 내부에서 팀 전원 인증샷"))),
                         new SpotDef("ONYANG_FOLK_MUSEUM", (short) 2,
-                                "[최종] 두 번째 전시관. 옛사람이 쓰던 물건만 모아 둔 곳이다. 비 오는 날에 더 어울린다.",
+                                "[최종] 마지막 조각은 사람이 손에 쥐고 살던 물건들 사이에 있다. 비 오는 날일수록 그 방은 더 그럴듯해진다.",
                                 BigDecimal.valueOf(36.7885), BigDecimal.valueOf(127.0044), 150, true,
                                 List.of(
                                         oxQuiz("온양은 조선시대 임금들이 찾던 온천으로 이름난 곳이다", true, null),

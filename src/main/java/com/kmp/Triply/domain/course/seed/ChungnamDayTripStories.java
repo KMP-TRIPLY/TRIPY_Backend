@@ -327,8 +327,9 @@ final class ChungnamDayTripStories {
     private static StoryDef seocheon() {
         return new StoryDef(
                 SEOCHEON,
-                "금강이 바다와 만나는 곳에서 짧고 굵게. 건물 하나에 담긴 지구의 기후대를 지나, "
-                        + "소나무 숲 위를 걸어 서해를 마주하면 끝이다. 반나절이면 충분하다.",
+                "금강이 바다로 풀리는 자리에 탐사 구역 두 곳이 있다. 문 하나를 지날 때마다 기후가 바뀌는 "
+                        + "건물을 먼저 통과하고, 소나무 숲 위로 난 길을 걸어 서해와 마주하는 순간 탐사가 끝난다. "
+                        + "해가 남아 있는 반나절이면 된다.",
                 "서천",
                 Difficulty.EASY,
                 300,
