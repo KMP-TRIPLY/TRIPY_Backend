@@ -39,4 +39,23 @@ public interface GameRoomRepository extends JpaRepository<GameRoom, Long> {
               and room.readySinceAt <= :cutoff
             """)
     List<GameRoom> findHostDelegationCandidates(@Param("cutoff") LocalDateTime cutoff);
+
+    /** 만들어 놓고 아무도 시작하지 않은 채 오래 방치된 대기실. */
+    @Query("""
+            select room
+            from GameRoom room
+            where room.status = com.kmp.Triply.domain.game.entity.GameStatus.WAITING
+              and room.createdAt <= :cutoff
+            """)
+    List<GameRoom> findStaleWaitingRooms(@Param("cutoff") LocalDateTime cutoff);
+
+    /** 시작해 놓고 끝내지 않은 채 남아 있는 방. 코스가 모두 당일치기라 하루를 넘기면 방치로 본다. */
+    @Query("""
+            select room
+            from GameRoom room
+            where room.status = com.kmp.Triply.domain.game.entity.GameStatus.RUNNING
+              and room.startedAt is not null
+              and room.startedAt <= :cutoff
+            """)
+    List<GameRoom> findStaleRunningRooms(@Param("cutoff") LocalDateTime cutoff);
 }

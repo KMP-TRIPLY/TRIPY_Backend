@@ -6,6 +6,7 @@ import com.kmp.Triply.domain.game.dto.request.GameRoomJoinRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomMaxMembersChangeRequest;
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
+import com.kmp.Triply.domain.game.dto.response.ActiveGameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
@@ -58,6 +59,17 @@ public class GameRoomController {
     @GetMapping("/game-rooms")
     public ResponseEntity<ApiResponse<List<GameRoomSummaryResponse>>> getWaitingRooms() {
         return ResponseEntity.ok(ApiResponse.ok(gameRoomService.getWaitingRooms()));
+    }
+
+    @Operation(summary = "내가 참여 중인 게임방",
+            description = "아직 끝내지 않은 내 방(대기 중·진행 중)을 돌려줍니다. 앱을 다시 켰을 때 이어서 들어갈 방을 찾는 용도입니다. "
+                    + "대기 중인 방 목록에는 진행 중인 방이 나오지 않으므로, 게임 도중 앱이 꺼졌다면 이 API 로 방을 찾아 "
+                    + "join 으로 재입장하면 됩니다.")
+    @GetMapping("/game-rooms/me/active")
+    public ResponseEntity<ApiResponse<List<ActiveGameRoomResponse>>> getMyActiveRooms(
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok(gameRoomService.getMyActiveRooms(userId)));
     }
 
     @Operation(summary = "게임방 참여",

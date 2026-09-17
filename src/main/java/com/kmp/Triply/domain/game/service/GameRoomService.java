@@ -7,6 +7,7 @@ import com.kmp.Triply.domain.game.dto.request.GameRoomMaxMembersChangeRequest;
 
 import com.kmp.Triply.domain.game.dto.request.GameRoomStartRequest;
 import com.kmp.Triply.domain.game.dto.request.TeamLeaveRequest;
+import com.kmp.Triply.domain.game.dto.response.ActiveGameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomJoinResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomResponse;
 import com.kmp.Triply.domain.game.dto.response.GameRoomSummaryResponse;
@@ -22,6 +23,8 @@ public interface GameRoomService {
     GameRoomJoinResponse joinRoom(Long userId, Long roomId, GameRoomJoinRequest request);
 
     List<GameRoomSummaryResponse> getWaitingRooms();
+
+    List<ActiveGameRoomResponse> getMyActiveRooms(Long userId);
 
     GameRoomResponse startRoom(Long userId, GameRoomStartRequest request);
 
