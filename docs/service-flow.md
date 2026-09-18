@@ -214,11 +214,11 @@ reward·ranking 도메인이 이 테이블을 참조한다. API 에서는 팀이
 
 **할 일:** 흡수하려면 점수 컬럼 이전과 FK 4개 마이그레이션이 필요하다. 급하지 않다.
 
-### 7.4 [죽은 코드] 참조가 0인 엔티티가 세 벌 있다
-`Leaderboard`(기간별 리더보드), `Notification`(알림), `WeatherCache`(날씨) —
-테이블 정의와 열거형만 있고 이를 읽거나 쓰는 코드가 없다. 만들려다 멈춘 기능의 흔적이다.
+### 7.4 [정리 완료] 참조가 0이던 엔티티를 지웠다
+`Leaderboard`/`LeaderboardScope`/`PeriodType`(기간별 리더보드)와 `WeatherCache`/`WeatherCondition`(날씨)를 삭제했다.
+랭킹은 `Ranking` 엔티티로, 날씨는 클라이언트가 넘기는 `course.WeatherCondition` 으로 처리한다.
 
-**물어야 할 것:** 만들 예정인가? 아니면 지울 것인가 — 남겨두면 다음 사람이 있는 기능으로 오해한다.
+**주의:** `ddl-auto: update` 는 테이블을 지우지 않으므로 `leaderboards`/`weather_cache` 테이블은 DB 에 남아 있다.
 
 ### 7.5 [운영] 스키마를 Hibernate 가 관리한다
 `ddl-auto: update` 라 컬럼 추가는 자동이지만 삭제·이름변경은 안 된다.

@@ -38,7 +38,7 @@ class RankingLookupTest {
     private RankingRepository rankingRepository;
 
     @InjectMocks
-    private RankingServiceImpl service;
+    private RankingService service;
 
     @Test
     void 종료된_방도_멤버별_순위를_돌려준다() {

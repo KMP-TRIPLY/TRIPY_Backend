@@ -26,8 +26,8 @@ class CourseDeleteTest {
     private static final long OTHER_ID = 9L;
 
     private final CourseRepository courseRepository = mock(CourseRepository.class);
-    private final CourseServiceImpl service =
-            new CourseServiceImpl(courseRepository, null, null, null, null, null);
+    private final CourseService service =
+            new CourseService(courseRepository, null, null, null, null, null);
 
     @Test
     void 만든_사람이_지우면_비활성화된다() {

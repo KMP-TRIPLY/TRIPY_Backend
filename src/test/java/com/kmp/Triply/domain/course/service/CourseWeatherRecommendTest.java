@@ -33,7 +33,7 @@ class CourseWeatherRecommendTest {
     private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
-    private CourseServiceImpl courseService;
+    private CourseService courseService;
 
     private final Course indoorCourse = course("비 오는 날의 사비", IndoorType.INDOOR,
             Set.of(CourseTag.RAINY_DAY, CourseTag.MUSEUM, CourseTag.KID_FRIENDLY));

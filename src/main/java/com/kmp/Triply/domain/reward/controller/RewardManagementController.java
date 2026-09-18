@@ -14,7 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,7 +36,7 @@ public class RewardManagementController {
     @PostMapping("/settle")
     public ResponseEntity<ApiResponse<RewardSettlementResponse>> settleRewards(
             @Valid @RequestBody RewardSettleRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(rewardService.settleRewards(request)));
+        return ResponseEntity.ok(ApiResponse.ok(rewardService.settleFinishedRoom(request.getGameRoomId())));
     }
 
     @Operation(summary = "제휴처 쿠폰 발급", description = "제휴처 쿠폰을 지정한 사용자에게 발급합니다.")
@@ -49,8 +49,7 @@ public class RewardManagementController {
 
     @Operation(summary = "내 쿠폰함 리스트 조회", description = "현재 로그인한 사용자의 쿠폰함 목록을 조회합니다.")
     @GetMapping("/coupons/my")
-    public ResponseEntity<ApiResponse<List<UserCouponResponse>>> getMyCoupons(Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+    public ResponseEntity<ApiResponse<List<UserCouponResponse>>> getMyCoupons(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(couponService.getMyCoupons(userId)));
     }
 }

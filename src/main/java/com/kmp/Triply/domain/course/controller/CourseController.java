@@ -20,7 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,9 +37,8 @@ public class CourseController {
     @Operation(summary = "코스 생성", description = "새로운 스토리텔링 코스를 생성합니다.")
     @PostMapping
     public ResponseEntity<ApiResponse<CourseResponse>> createCourse(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @Valid @RequestBody CourseCreateRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(courseService.createCourse(userId, request)));
     }
@@ -88,9 +87,8 @@ public class CourseController {
             description = "본인이 만든 코스를 비활성화합니다. 목록·지역 조회에서 즉시 빠지고, 이미 진행된 게임 기록은 유지됩니다.")
     @DeleteMapping("/{courseId}")
     public ResponseEntity<ApiResponse<Void>> deleteCourse(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long courseId) {
-        Long userId = (Long) authentication.getPrincipal();
         courseService.deleteCourse(userId, courseId);
         return ResponseEntity.ok(ApiResponse.ok(null));
     }

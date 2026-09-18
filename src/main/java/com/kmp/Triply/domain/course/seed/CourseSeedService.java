@@ -43,7 +43,7 @@ import static com.kmp.Triply.domain.course.seed.SeedMissions.textQuiz;
 @RequiredArgsConstructor
 public class CourseSeedService {
 
-    // 국가행정표준코드 시도 코드(충청남도=44). 관광공사 API 연동부(TourismApiServiceImpl)와 동일 기준.
+    // 국가행정표준코드 시도 코드(충청남도=44). 관광공사 API 연동부(TourismApiService)와 동일 기준.
     private static final String REGION_CODE = "44";
 
     private final CourseRepository courseRepository;

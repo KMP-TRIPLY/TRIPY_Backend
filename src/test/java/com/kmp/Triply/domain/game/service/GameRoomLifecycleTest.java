@@ -46,8 +46,8 @@ class GameRoomLifecycleTest {
     private final GameRewardGrantService gameRewardGrantService = mock(GameRewardGrantService.class);
     private final RewardService rewardService = mock(RewardService.class);
 
-    private GameRoomServiceImpl service() {
-        GameRoomServiceImpl service = new GameRoomServiceImpl(
+    private GameRoomService service() {
+        GameRoomService service = new GameRoomService(
                 gameRoomRepository, gameProgressRepository, teamRepository, teamMemberRepository, null,
                 missionAttemptRepository, rankingRepository, null, courseSpotRepository, null, null,
                 notifier, gameRewardGrantService, rewardService, null);
@@ -122,7 +122,7 @@ class GameRoomLifecycleTest {
 
     @Test
     void 정리_시간을_0으로_두면_아무_방도_건드리지_않는다() {
-        GameRoomServiceImpl service = service();
+        GameRoomService service = service();
         ReflectionTestUtils.setField(service, "waitingExpireHours", 0L);
         ReflectionTestUtils.setField(service, "runningExpireHours", 0L);
 

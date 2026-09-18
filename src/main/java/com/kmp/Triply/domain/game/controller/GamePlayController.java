@@ -17,7 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,11 +44,10 @@ public class GamePlayController {
                     + "도착 인증을 마친 스팟의 미션만 제출할 수 있습니다.")
     @PostMapping(value = "/missions/{missionId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<MissionSubmitResponse>> submitMissionPhoto(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long missionId,
             @RequestParam Long roomId,
             @RequestPart("photo") MultipartFile photo) {
-        Long userId = (Long) authentication.getPrincipal();
         MissionPhotoReader.Image image = missionPhotoReader.read(photo);
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.submitPhotoMission(
                 userId, missionId, roomId, image.bytes(), image.contentType())));
@@ -57,50 +56,45 @@ public class GamePlayController {
     @Operation(summary = "게임방 진행 현황", description = "게임방의 스팟별 진행 상태와 완료 미션 수, 총점을 조회합니다.")
     @GetMapping("/game-rooms/{roomId}/progress")
     public ResponseEntity<ApiResponse<RoomProgressResponse>> getRoomProgress(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long roomId) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getRoomProgress(userId, roomId)));
     }
 
     @Operation(summary = "스팟 도착 인증", description = "GPS 위치로 스팟 도착을 인증하면 해당 스팟의 미션이 활성화됩니다. (skipGps=true 시 위치 검증 생략)")
     @PostMapping("/game-rooms/{roomId}/spots/{spotId}/arrive")
     public ResponseEntity<ApiResponse<SpotArriveResponse>> arriveSpot(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long roomId,
             @PathVariable Long spotId,
             @Valid @RequestBody SpotArriveRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.arriveSpot(userId, roomId, spotId, request)));
     }
 
     @Operation(summary = "스팟 미션 조회", description = "도착한 스팟의 미션 목록을 조회합니다. 정답은 포함되지 않습니다.")
     @GetMapping("/game-rooms/{roomId}/spots/{spotId}/missions")
     public ResponseEntity<ApiResponse<List<PlayMissionResponse>>> getSpotMissions(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long roomId,
             @PathVariable Long spotId) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.getSpotMissions(userId, roomId, spotId)));
     }
 
     @Operation(summary = "힌트 요청", description = "미션 힌트를 열람합니다. 최초 열람 시 감점이 예약됩니다.")
     @PostMapping("/missions/{missionId}/hint")
     public ResponseEntity<ApiResponse<HintResponse>> requestHint(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long missionId,
             @Valid @RequestBody HintRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.requestHint(userId, missionId, request)));
     }
 
     @Operation(summary = "미션 제출", description = "미션 답을 제출하면 서버가 채점하고 팀 점수에 반영합니다.")
     @PostMapping("/missions/{missionId}/submit")
     public ResponseEntity<ApiResponse<MissionSubmitResponse>> submitMission(
-            Authentication authentication,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long missionId,
             @Valid @RequestBody MissionSubmitRequest request) {
-        Long userId = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(ApiResponse.ok(gamePlayService.submitMission(userId, missionId, request)));
     }
 }

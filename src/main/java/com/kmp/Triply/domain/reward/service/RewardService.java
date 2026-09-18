@@ -1,16 +1,187 @@
 package com.kmp.Triply.domain.reward.service;
 
-import com.kmp.Triply.domain.reward.dto.request.RewardSettleRequest;
+import com.kmp.Triply.domain.game.entity.GameRoom;
+import com.kmp.Triply.domain.game.entity.GameStatus;
+import com.kmp.Triply.domain.game.entity.Team;
+import com.kmp.Triply.domain.game.entity.TeamMember;
+import com.kmp.Triply.domain.game.repository.GameRoomRepository;
+import com.kmp.Triply.domain.game.repository.MissionAttemptRepository;
+import com.kmp.Triply.domain.game.repository.TeamLeaveHistoryRepository;
+import com.kmp.Triply.domain.game.repository.TeamMemberRepository;
+import com.kmp.Triply.domain.game.repository.TeamRepository;
+import com.kmp.Triply.domain.reward.dto.response.RewardSettlementMemberResponse;
 import com.kmp.Triply.domain.reward.dto.response.RewardSettlementResponse;
+import com.kmp.Triply.domain.reward.dto.response.RewardSettlementTeamResponse;
+import com.kmp.Triply.domain.reward.dto.response.UserCouponResponse;
 import com.kmp.Triply.domain.reward.dto.response.UserRewardResponse;
+import com.kmp.Triply.domain.reward.entity.Coupon;
+import com.kmp.Triply.domain.reward.entity.UserCoupon;
+import com.kmp.Triply.domain.reward.repository.CouponRepository;
+import com.kmp.Triply.domain.reward.repository.UserCouponRepository;
+import com.kmp.Triply.domain.reward.repository.UserRewardRepository;
+import com.kmp.Triply.global.exception.CustomException;
+import com.kmp.Triply.global.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-public interface RewardService {
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class RewardService {
 
-    List<UserRewardResponse> getMyRewards(Long userId);
+    private final UserRewardRepository userRewardRepository;
+    private final UserCouponRepository userCouponRepository;
+    private final CouponRepository couponRepository;
+    private final GameRoomRepository gameRoomRepository;
+    private final TeamRepository teamRepository;
+    private final TeamMemberRepository teamMemberRepository;
+    private final TeamLeaveHistoryRepository teamLeaveHistoryRepository;
+    private final MissionAttemptRepository missionAttemptRepository;
 
-    RewardSettlementResponse settleRewards(RewardSettleRequest request);
+    public List<UserRewardResponse> getMyRewards(Long userId) {
+        return userRewardRepository.findByUserIdOrderByEarnedAtDesc(userId).stream()
+                .map(UserRewardResponse::from)
+                .toList();
+    }
 
-    RewardSettlementResponse settleFinishedRoom(Long gameRoomId);
+    @Transactional
+    public RewardSettlementResponse settleFinishedRoom(Long gameRoomId) {
+        GameRoom gameRoom = gameRoomRepository.findById(gameRoomId)
+                .orElseThrow(() -> new CustomException(ErrorCode.GAME_ROOM_NOT_FOUND));
+        if (gameRoom.getStatus() != GameStatus.FINISHED) {
+            throw new CustomException(ErrorCode.REWARD_SETTLEMENT_UNAVAILABLE);
+        }
+
+        List<Coupon> coupons = couponRepository.findAllByIsActiveTrueOrderByValidUntilAsc();
+        List<Team> teams = teamRepository.findAllByGameRoomIdOrderByTotalScoreDescCreatedAtAsc(gameRoom.getId());
+        List<RewardSettlementTeamResponse> teamReports = new ArrayList<>();
+        int issuedCouponCount = 0;
+
+        for (int index = 0; index < teams.size(); index++) {
+            Team team = teams.get(index);
+            int rank = index + 1;
+            List<TeamMember> members = teamMemberRepository.findAllByTeamIdAndIsActiveTrue(team.getId());
+            int activeMemberScore = getActiveMemberScore(team, members);
+            int redistributableScore = getRedistributableScore(team, activeMemberScore);
+            int redistributedScorePerMember = getRedistributedScorePerMember(redistributableScore, members.size());
+            int redistributionRemainder = getRedistributionRemainder(redistributableScore, members.size());
+            List<RewardSettlementMemberResponse> memberSettlements = getMemberSettlements(
+                    team, members, redistributedScorePerMember, redistributionRemainder);
+            List<UserCouponResponse> issuedCoupons = settleTeamCoupons(gameRoom, team, rank, coupons, members);
+            issuedCouponCount += issuedCoupons.size();
+            teamReports.add(RewardSettlementTeamResponse.of(
+                    team,
+                    rank,
+                    activeMemberScore,
+                    redistributableScore,
+                    redistributedScorePerMember,
+                    redistributionRemainder,
+                    memberSettlements,
+                    issuedCoupons
+            ));
+        }
+
+        return RewardSettlementResponse.of(gameRoom, issuedCouponCount, teamReports);
+    }
+
+    private List<UserCouponResponse> settleTeamCoupons(GameRoom gameRoom, Team team, int rank,
+                                                       List<Coupon> coupons, List<TeamMember> members) {
+        List<UserCouponResponse> issuedCoupons = new ArrayList<>();
+
+        for (Coupon coupon : coupons) {
+            if (!isCouponEligible(coupon, rank)) {
+                continue;
+            }
+            for (TeamMember member : members) {
+                issueCouponIfAbsent(coupon, member, gameRoom, rank)
+                        .map(UserCouponResponse::from)
+                        .ifPresent(issuedCoupons::add);
+            }
+        }
+
+        return issuedCoupons;
+    }
+
+    private List<RewardSettlementMemberResponse> getMemberSettlements(Team team, List<TeamMember> members,
+                                                                      int redistributedScorePerMember,
+                                                                      int redistributionRemainder) {
+        List<RewardSettlementMemberResponse> memberSettlements = new ArrayList<>();
+
+        for (int index = 0; index < members.size(); index++) {
+            TeamMember member = members.get(index);
+            int originalScore = missionAttemptRepository.sumScoreByTeamIdAndUserId(team.getId(), member.getUser().getId());
+            int redistributedScore = redistributedScorePerMember;
+            if (index == 0) {
+                redistributedScore += redistributionRemainder;
+            }
+            memberSettlements.add(RewardSettlementMemberResponse.of(member, originalScore, redistributedScore));
+        }
+
+        return memberSettlements;
+    }
+
+    private int getActiveMemberScore(Team team, List<TeamMember> members) {
+        return members.stream()
+                .mapToInt(member -> missionAttemptRepository.sumScoreByTeamIdAndUserId(
+                        team.getId(), member.getUser().getId()))
+                .sum();
+    }
+
+    private int getRedistributableScore(Team team, int activeMemberScore) {
+        int attemptedTeamScore = missionAttemptRepository.sumScoreByTeamId(team.getId());
+        int leftMemberScore = teamLeaveHistoryRepository.sumPreservedScoreByTeamId(team.getId());
+        int baseTeamScore = Math.max(Math.max(team.getTotalScore(), attemptedTeamScore), activeMemberScore + leftMemberScore);
+        return Math.max(0, baseTeamScore - activeMemberScore);
+    }
+
+    private int getRedistributedScorePerMember(int redistributableScore, int memberCount) {
+        if (memberCount == 0) {
+            return 0;
+        }
+        return redistributableScore / memberCount;
+    }
+
+    private int getRedistributionRemainder(int redistributableScore, int memberCount) {
+        if (memberCount == 0) {
+            return 0;
+        }
+        return redistributableScore % memberCount;
+    }
+
+    private boolean isCouponEligible(Coupon coupon, int rank) {
+        LocalDateTime now = LocalDateTime.now();
+        return coupon.isActive()
+                && !now.isBefore(coupon.getValidFrom())
+                && !now.isAfter(coupon.getValidUntil())
+                && (coupon.getMinRank() == null || rank <= coupon.getMinRank());
+    }
+
+    private Optional<UserCoupon> issueCouponIfAbsent(Coupon coupon, TeamMember member, GameRoom gameRoom, int rank) {
+        Coupon lockedCoupon = couponRepository.findByIdForUpdate(coupon.getId())
+                .orElseThrow(() -> new CustomException(ErrorCode.COUPON_NOT_FOUND));
+        Optional<UserCoupon> issuedCoupon = userCouponRepository.findByCouponIdAndUserIdAndGameRoomId(
+                lockedCoupon.getId(), member.getUser().getId(), gameRoom.getId());
+        if (issuedCoupon.isPresent()) {
+            return Optional.empty();
+        }
+        if (!isCouponEligible(lockedCoupon, rank)
+                || lockedCoupon.getMaxIssueCount() != null
+                && userCouponRepository.countByCouponId(lockedCoupon.getId()) >= lockedCoupon.getMaxIssueCount()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(userCouponRepository.save(UserCoupon.builder()
+                .user(member.getUser())
+                .coupon(lockedCoupon)
+                .gameRoom(gameRoom)
+                .couponCode(userCouponRepository.nextUniqueCouponCode())
+                .expiresAt(lockedCoupon.getValidUntil())
+                .build()));
+    }
 }
