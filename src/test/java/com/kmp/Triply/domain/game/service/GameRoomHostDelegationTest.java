@@ -29,7 +29,7 @@ class GameRoomHostDelegationTest {
         GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
-        GameRoomServiceImpl service = new GameRoomServiceImpl(
+        GameRoomService service = new GameRoomService(
                 gameRoomRepository, null, null, teamMemberRepository, null, null,
                 null, null, null, null, null, notifier, null, null, null);
         ReflectionTestUtils.setField(service, "hostDelegationTimeoutMinutes", 5L);
@@ -61,7 +61,7 @@ class GameRoomHostDelegationTest {
     void 정원이_차지_않았으면_방장_위임_타이머를_초기화한다() {
         GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
-        GameRoomServiceImpl service = new GameRoomServiceImpl(
+        GameRoomService service = new GameRoomService(
                 gameRoomRepository, null, null, teamMemberRepository, null, null,
                 null, null, null, null, null, mock(GameRoomRealtimeNotifier.class), null, null, null);
         ReflectionTestUtils.setField(service, "hostDelegationTimeoutMinutes", 5L);
@@ -90,7 +90,7 @@ class GameRoomHostDelegationTest {
         GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
-        GameRoomServiceImpl service = new GameRoomServiceImpl(
+        GameRoomService service = new GameRoomService(
                 gameRoomRepository, null, null, teamMemberRepository, null, null,
                 null, null, null, null, null, notifier, null, null, null);
 
@@ -125,7 +125,7 @@ class GameRoomHostDelegationTest {
         GameRoomRepository gameRoomRepository = mock(GameRoomRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
         GameRoomRealtimeNotifier notifier = mock(GameRoomRealtimeNotifier.class);
-        GameRoomServiceImpl service = new GameRoomServiceImpl(
+        GameRoomService service = new GameRoomService(
                 gameRoomRepository, null, null, teamMemberRepository, null, null,
                 null, null, null, null, null, notifier, null, null, null);
 

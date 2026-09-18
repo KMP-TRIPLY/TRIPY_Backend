@@ -32,7 +32,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 역할은 **방장**(`GameRoom.host`) 하나다. 팀장(`Team.leader`)과 멤버 역할(`TeamMember.role`)은 제거했다.
 
-방장만 가능한 동작 — 모두 `validateHost()` 통과 필요 (`GameRoomServiceImpl.java:308`):
+방장만 가능한 동작 — 모두 `validateHost()` 통과 필요 (`GameRoomService.java:404`):
 
 | 동작 | 메서드 |
 |---|---|
@@ -68,7 +68,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 { "password": "12345" }   // 잠긴 방(locked=true)만. 그 밖은 본문 없이
 ```
 
-`joinRoom` (`GameRoomServiceImpl.java:88`) 의 분기:
+`joinRoom` (`GameRoomService.java:117`) 의 분기:
 
 1. roomId 로 방을 찾지 못하면 → `GAME_ROOM_NOT_FOUND`
 2. **이미 이 방의 멤버** → `rejoinRoom()` 으로 재입장 처리 (4장 참고). 이때 비밀번호는 묻지 않는다
@@ -91,7 +91,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### ④ 플레이
 
-모든 경로가 `roomId` 기준이며, 서버가 `teamOfRoom(roomId)` 로 내부 팀을 찾는다.
+모든 경로가 `roomId` 기준이며, 서버가 `TeamRepository.findOfRoom(roomId)` 로 내부 팀을 찾는다.
 
 | 동작 | 엔드포인트 |
 |---|---|
@@ -109,7 +109,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### ⑤ 종료 — `POST /api/game-rooms/{id}/end`
 
-방장 전용. `endRoom` (`GameRoomServiceImpl.java:206`):
+방장 전용. `endRoom` (`GameRoomService.java:303`):
 
 1. 팀 점수 확정 (`team.finish`)
 2. `gameRoom.finish()`
@@ -126,7 +126,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### 나가기 — `POST /api/game-rooms/{roomId}/leave`
 
-`leaveRoom` (`GameRoomServiceImpl.java:153`):
+`leaveRoom` (`GameRoomService.java:246`):
 
 | 조건 | 동작 |
 |---|---|
@@ -215,7 +215,7 @@ GameRoom (게임방)           ← 사용자가 인식하는 단위
 
 ### 알려진 공유 자원 이슈
 
-- **쿠폰 재고** (`RewardServiceImpl.java:183`) — `countByCouponId >= maxIssueCount` 확인과 발급 사이에 락이 없다. 두 방이 동시에 정산하면 한도를 넘겨 발급될 수 있다.
+- **쿠폰 재고** (`RewardService.java:175`) — `countByCouponId >= maxIssueCount` 확인과 발급 사이에 락이 없다. 두 방이 동시에 정산하면 한도를 넘겨 발급될 수 있다.
 - **방 코드** (`generateRoomCode`) — 동시에 같은 코드를 뽑으면 유니크 제약에 걸려 500이 난다. 확률은 낮고(32자 6자리) 재시도로 감쌀 수 있다.
 
 ---
@@ -287,7 +287,7 @@ DTO는 `TeamProgressResponse` → `RoomProgressResponse`, `TeamResponse` → `Ro
 
 ## 8. 전환 중 함께 고친 버그
 
-1. **힌트 요청자가 항상 팀장으로 기록** — `.user(team.getLeader())` → 실제 요청자 (`GamePlayServiceImpl.java:166`)
+1. **힌트 요청자가 항상 팀장으로 기록** — `.user(team.getLeader())` → 실제 요청자 (`GamePlayService.java:164`)
 2. **도달 불가 fallback** — 제출자 조회의 `orElse(team.getLeader())`. 직전에 팀원 검증을 이미 통과하므로 도달할 수 없는 코드였다. 제거하면서 같은 조회를 두 번 하던 중복 쿼리도 사라졌다
 3. **정원 검사 부재** — 이전에는 팀 수만 셌기 때문에 한 방 = 한 팀이 되는 순간 무제한 입장이 됐다
 
@@ -295,8 +295,7 @@ DTO는 `TeamProgressResponse` → `RoomProgressResponse`, `TeamResponse` → `Ro
 
 ## 9. 남은 작업
 
-- `Team` 테이블은 방당 1행으로 내부에만 존재한다 (`teamOfRoom` 의 `ponytail:` 주석). `GameRoom` 으로 흡수하려면 점수·진행상황 컬럼과 reward·ranking 도메인의 FK 이전이 필요하다
+- `Team` 테이블은 방당 1행으로 내부에만 존재한다 (`TeamRepository.findOfRoom` 의 `ponytail:` 주석). `GameRoom` 으로 흡수하려면 점수·진행상황 컬럼과 reward·ranking 도메인의 FK 이전이 필요하다
 - `Team.rank` 와 `rankings.rank`(ROOM 타입)는 방 안 등수라 항상 1이다. 코스 랭킹 조회 시 `index+1` 로 다시 매기므로 실질 영향은 없지만 죽은 값이다
 - 쿠폰 재고 동시성 (6장)
-- `Leaderboard` / `LeaderboardScope` 는 참조가 0인 죽은 엔티티
 - 컴파일 미검증 — 작업 환경에 JDK가 없었다. `./gradlew compileJava compileTestJava` 확인 필요

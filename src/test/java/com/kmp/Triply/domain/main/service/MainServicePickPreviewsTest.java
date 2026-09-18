@@ -25,7 +25,7 @@ class MainServicePickPreviewsTest {
 
     @Test
     void 인기_순위가_높은_순으로_고른다() {
-        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
+        List<RecommendationResponse> picked = MainService.pickTopSpots(List.of(
                 spot("5위", "A", 5),
                 spot("1위", "B", 1),
                 spot("3위", "C", 3),
@@ -37,7 +37,7 @@ class MainServicePickPreviewsTest {
 
     @Test
     void 같은_시군구는_한_곳만_고른다() {
-        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
+        List<RecommendationResponse> picked = MainService.pickTopSpots(List.of(
                 spot("청주1", "43111", 1),
                 spot("청주2", "43111", 2),
                 spot("청주3", "43111", 3),
@@ -51,7 +51,7 @@ class MainServicePickPreviewsTest {
     @Test
     void 순위가_없는_곳은_뒤로_밀린다() {
         // hubRank 가 없으면 0 으로 파싱된다. 0 을 최상위로 보면 안 된다.
-        List<RecommendationResponse> picked = MainServiceImpl.pickTopSpots(List.of(
+        List<RecommendationResponse> picked = MainService.pickTopSpots(List.of(
                 spot("순위없음", "A", 0),
                 spot("10위", "B", 10),
                 spot("20위", "C", 20)));
@@ -62,8 +62,8 @@ class MainServicePickPreviewsTest {
 
     @Test
     void 세_개보다_적으면_있는_만큼만_준다() {
-        assertThat(MainServiceImpl.pickTopSpots(List.of(spot("하나", "A", 1)))).hasSize(1);
-        assertThat(MainServiceImpl.pickTopSpots(List.of())).isEmpty();
+        assertThat(MainService.pickTopSpots(List.of(spot("하나", "A", 1)))).hasSize(1);
+        assertThat(MainService.pickTopSpots(List.of())).isEmpty();
     }
 
     @Test
@@ -72,7 +72,7 @@ class MainServicePickPreviewsTest {
                 spot("5위", "A", 5),
                 spot("1위", "B", 1)));
 
-        MainServiceImpl.pickTopSpots(spots);
+        MainService.pickTopSpots(spots);
 
         assertThat(spots).extracting(RecommendationResponse::getTitle).containsExactly("5위", "1위");
     }

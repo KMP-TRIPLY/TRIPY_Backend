@@ -14,12 +14,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * 채점·점수 계산만 검증한다. 나머지 의존성은 grade/scoreFor 경로에서 쓰이지 않아 null.
  */
-class GamePlayServiceImplTest {
+class GamePlayServiceTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final GamePlayServiceImpl service =
-            new GamePlayServiceImpl(null, null, null, null, null, null, null, MAPPER, null, null, null);
+    private final GamePlayService service =
+            new GamePlayService(null, null, null, null, null, null, null, MAPPER, null, null, null);
 
     private static final String CHOICES = """
             [{"label":"경복궁","value":"A","is_correct":true},
@@ -56,7 +56,7 @@ class GamePlayServiceImplTest {
                     .isInstanceOf(CustomException.class)
                     .extracting(e -> ((CustomException) e).getErrorCode())
                     .isEqualTo(ErrorCode.PHOTO_SUBMIT_REQUIRED);
-            assertThat(GamePlayServiceImpl.requiresPhotoUpload(type)).isTrue();
+            assertThat(GamePlayService.requiresPhotoUpload(type)).isTrue();
         }
     }
 
@@ -67,7 +67,7 @@ class GamePlayServiceImplTest {
         assertThat(service.grade(mission, submit("tag-1234", null))).isTrue();
         assertThat(service.grade(mission, submit("  ", null))).isFalse();
         assertThat(service.grade(mission, submit(null, null))).isFalse();
-        assertThat(GamePlayServiceImpl.requiresPhotoUpload(MissionType.NFC)).isFalse();
+        assertThat(GamePlayService.requiresPhotoUpload(MissionType.NFC)).isFalse();
     }
 
     @Test

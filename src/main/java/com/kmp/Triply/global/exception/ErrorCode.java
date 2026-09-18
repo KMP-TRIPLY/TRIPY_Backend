@@ -19,7 +19,6 @@ public enum ErrorCode {
     // User
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     USER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인 계정만 수정할 수 있습니다."),
-    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
 
     // Trip
@@ -28,9 +27,6 @@ public enum ErrorCode {
 
     // Place
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다."),
-
-    // Travel Profile
-    TRAVEL_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "여행 프로필을 찾을 수 없습니다."),
 
     // Tourism API
     TOURISM_API_ERROR(HttpStatus.BAD_GATEWAY, "한국관광공사 API 호출에 실패했습니다."),

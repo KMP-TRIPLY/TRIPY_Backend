@@ -14,30 +14,30 @@ class SpotNameMatchTest {
     @Test
     void 괄호_안_부가설명을_떼고_비교한다() {
         // 관광정보 쪽 표기: "선화당(공주)", "공주 무령왕릉과 왕릉원[유네스코 세계유산]"
-        assertThat(TourismApiServiceImpl.normalizeSpotName("선화당(공주)")).isEqualTo("선화당");
-        assertThat(TourismApiServiceImpl.normalizeSpotName("공주 무령왕릉과 왕릉원[유네스코 세계유산]"))
+        assertThat(TourismApiService.normalizeSpotName("선화당(공주)")).isEqualTo("선화당");
+        assertThat(TourismApiService.normalizeSpotName("공주 무령왕릉과 왕릉원[유네스코 세계유산]"))
                 .isEqualTo("공주무령왕릉과왕릉원");
     }
 
     @Test
     void 공백_차이는_같은_이름으로_본다() {
-        assertThat(TourismApiServiceImpl.normalizeSpotName("공주 고마나루"))
-                .isEqualTo(TourismApiServiceImpl.normalizeSpotName("공주고마나루"));
+        assertThat(TourismApiService.normalizeSpotName("공주 고마나루"))
+                .isEqualTo(TourismApiService.normalizeSpotName("공주고마나루"));
     }
 
     @Test
     void 다른_장소는_같아지지_않는다() {
         // 이 둘이 같아지면 게스트하우스 사진이 공산성에 붙는다
-        assertThat(TourismApiServiceImpl.normalizeSpotName("공산성"))
-                .isNotEqualTo(TourismApiServiceImpl.normalizeSpotName("공주공산성게스트 하우스"));
-        assertThat(TourismApiServiceImpl.normalizeSpotName("국립공주박물관"))
-                .isNotEqualTo(TourismApiServiceImpl.normalizeSpotName("선화당(공주)"));
+        assertThat(TourismApiService.normalizeSpotName("공산성"))
+                .isNotEqualTo(TourismApiService.normalizeSpotName("공주공산성게스트 하우스"));
+        assertThat(TourismApiService.normalizeSpotName("국립공주박물관"))
+                .isNotEqualTo(TourismApiService.normalizeSpotName("선화당(공주)"));
     }
 
     @Test
     void 빈_값도_다룬다() {
-        assertThat(TourismApiServiceImpl.normalizeSpotName(null)).isEmpty();
-        assertThat(TourismApiServiceImpl.normalizeSpotName("")).isEmpty();
+        assertThat(TourismApiService.normalizeSpotName(null)).isEmpty();
+        assertThat(TourismApiService.normalizeSpotName("")).isEmpty();
     }
 
     // ---- 접두 일치 ----
@@ -46,26 +46,26 @@ class SpotNameMatchTest {
 
     @Test
     void 관광정보_이름이_스팟_이름으로_시작하면_같은_곳으로_본다() {
-        assertThat(TourismApiServiceImpl.isPrefixMatch("청남대", "청남대가을축제")).isTrue();
-        assertThat(TourismApiServiceImpl.isPrefixMatch("대전역", "대전역동광장")).isTrue();
+        assertThat(TourismApiService.isPrefixMatch("청남대", "청남대가을축제")).isTrue();
+        assertThat(TourismApiService.isPrefixMatch("대전역", "대전역동광장")).isTrue();
     }
 
     @Test
     void 이름_안에_들어만_있는_것은_받지_않는다() {
         // 이 둘을 받으면 게스트하우스·화장품가게 사진이 사적에 붙는다
-        assertThat(TourismApiServiceImpl.isPrefixMatch("공산성", "공주공산성게스트하우스")).isFalse();
-        assertThat(TourismApiServiceImpl.isPrefixMatch("대전역", "올리브영대전역점")).isFalse();
+        assertThat(TourismApiService.isPrefixMatch("공산성", "공주공산성게스트하우스")).isFalse();
+        assertThat(TourismApiService.isPrefixMatch("대전역", "올리브영대전역점")).isFalse();
     }
 
     @Test
     void 짧은_이름은_접두로_보지_않는다() {
         // 두 글자는 아무 데나 걸린다
-        assertThat(TourismApiServiceImpl.isPrefixMatch("공주", "공주산성시장")).isFalse();
-        assertThat(TourismApiServiceImpl.isPrefixMatch("", "무엇이든")).isFalse();
+        assertThat(TourismApiService.isPrefixMatch("공주", "공주산성시장")).isFalse();
+        assertThat(TourismApiService.isPrefixMatch("", "무엇이든")).isFalse();
     }
 
     @Test
     void 세_글자_이상이면_접두로_본다() {
-        assertThat(TourismApiServiceImpl.isPrefixMatch("고마나루", "고마나루1999")).isTrue();
+        assertThat(TourismApiService.isPrefixMatch("고마나루", "고마나루1999")).isTrue();
     }
 }

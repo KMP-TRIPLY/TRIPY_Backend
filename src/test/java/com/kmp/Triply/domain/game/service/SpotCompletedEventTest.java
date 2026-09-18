@@ -76,7 +76,7 @@ class SpotCompletedEventTest {
     private NotificationService notificationService;
 
     @InjectMocks
-    private GamePlayServiceImpl service;
+    private GamePlayService service;
 
     private final Course course = course();
     private final CourseSpot spot = spot(29L, (short) 1);
@@ -117,7 +117,7 @@ class SpotCompletedEventTest {
         GameProgress progress = progress(team);
 
         when(missionRepository.findById(60L)).thenReturn(Optional.of(mission));
-        when(teamRepository.findFirstByGameRoomIdOrderByIdAsc(66L)).thenReturn(Optional.of(team));
+        when(teamRepository.findOfRoom(66L)).thenReturn(team);
         when(teamMemberRepository.findByTeamIdAndUserIdAndIsActiveTrue(7L, 19L))
                 .thenReturn(Optional.of(member(team, user())));
         when(gameProgressRepository.findByTeamIdAndCourseSpotId(7L, 29L)).thenReturn(Optional.of(progress));

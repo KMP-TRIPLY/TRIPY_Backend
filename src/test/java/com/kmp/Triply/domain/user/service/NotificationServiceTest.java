@@ -23,13 +23,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class NotificationServiceImplTest {
+class NotificationServiceTest {
 
     @Test
     void 미션_클리어_알림은_제출자를_뺀_활성_팀원에게_저장된다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
-        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, teamMemberRepository);
+        NotificationService service = new NotificationService(notificationRepository, teamMemberRepository);
 
         Team team = team(10L);
         User submitter = user(1L, "민지");
@@ -55,7 +55,7 @@ class NotificationServiceImplTest {
     void 혼자_하는_방이면_알림이_생기지_않는다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
         TeamMemberRepository teamMemberRepository = mock(TeamMemberRepository.class);
-        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, teamMemberRepository);
+        NotificationService service = new NotificationService(notificationRepository, teamMemberRepository);
 
         Team team = team(10L);
         User submitter = user(1L, "민지");
@@ -77,7 +77,7 @@ class NotificationServiceImplTest {
     @Test
     void 알림_목록과_읽지_않은_개수를_조회한다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
-        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, mock(TeamMemberRepository.class));
+        NotificationService service = new NotificationService(notificationRepository, mock(TeamMemberRepository.class));
         User user = user(1L, "민지");
         Notification notification = notification(user);
         when(notificationRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(user.getId()))
@@ -95,7 +95,7 @@ class NotificationServiceImplTest {
     @Test
     void 본인_알림을_읽음_처리한다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
-        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, mock(TeamMemberRepository.class));
+        NotificationService service = new NotificationService(notificationRepository, mock(TeamMemberRepository.class));
         User user = user(1L, "민지");
         Notification notification = notification(user);
         when(notificationRepository.findByIdAndUserId(100L, user.getId()))
@@ -110,7 +110,7 @@ class NotificationServiceImplTest {
     @Test
     void 읽지_않은_알림을_모두_읽음_처리한다() {
         NotificationRepository notificationRepository = mock(NotificationRepository.class);
-        NotificationServiceImpl service = new NotificationServiceImpl(notificationRepository, mock(TeamMemberRepository.class));
+        NotificationService service = new NotificationService(notificationRepository, mock(TeamMemberRepository.class));
         User user = user(1L, "민지");
         Notification first = notification(user);
         Notification second = notification(user);
