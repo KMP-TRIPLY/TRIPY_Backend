@@ -34,6 +34,9 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     boolean existsByTeamGameRoomIdAndUserIdAndIsActiveTrue(Long gameRoomId, Long userId);
 
+    /** 이 사람이 지금 게임을 뛰고 있는 방이 있는지. 새 방을 만들지 못하게 막는 데 쓴다. */
+    boolean existsByUserIdAndIsActiveTrueAndTeamGameRoomStatus(Long userId, GameStatus status);
+
     long countByTeamGameRoomId(Long gameRoomId);
 
     long countByTeamGameRoomIdAndIsActiveTrue(Long gameRoomId);

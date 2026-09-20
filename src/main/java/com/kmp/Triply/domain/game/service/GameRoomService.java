@@ -90,6 +90,12 @@ public class GameRoomService {
     @Transactional
     public GameRoomJoinResponse createRoom(Long userId, GameRoomCreateRequest request) {
         User host = getUser(userId);
+        // 게임을 뛰는 중에 새 방을 만들면 팀이 하나 더 생긴다. 안 끝난 방이 둘이 되어 복귀할 곳이
+        // 애매해지고 점수도 두 방에 나뉜다. 대기 중인 방은 언제든 나갈 수 있으니 막지 않는다.
+        if (teamMemberRepository.existsByUserIdAndIsActiveTrueAndTeamGameRoomStatus(
+                userId, GameStatus.RUNNING)) {
+            throw new CustomException(ErrorCode.ALREADY_PLAYING);
+        }
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new CustomException(ErrorCode.COURSE_NOT_FOUND));
 
