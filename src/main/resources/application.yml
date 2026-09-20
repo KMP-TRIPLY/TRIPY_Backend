@@ -147,7 +147,8 @@ mission:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
       model: ${MISSION_PHOTO_AI_MODEL:gpt-5-mini}
       # 이 값 이상이면 통과. 오탐으로 게임이 막히면 재배포 없이 조정할 수 있어야 한다.
-      threshold: ${MISSION_PHOTO_AI_THRESHOLD:0.7}
+      # 통과는 0.8 대, 거부는 0.2 대로 갈리므로 그 사이에 둔다. 낮춰도 거부가 새지 않는다.
+      threshold: ${MISSION_PHOTO_AI_THRESHOLD:0.6}
 
 # ===== Korea Tourism Open API =====
 tourism:
