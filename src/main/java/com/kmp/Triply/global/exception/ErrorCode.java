@@ -49,6 +49,7 @@ public enum ErrorCode {
     INVALID_GAME_ROOM_PASSWORD(HttpStatus.UNAUTHORIZED, "게임 방 비밀번호가 일치하지 않습니다."),
     GAME_ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "게임 방에 대한 권한이 없습니다."),
     LEFT_ROOM_CANNOT_REJOIN(HttpStatus.CONFLICT, "하차한 게임 방에는 다시 참여할 수 없습니다."),
+    ALREADY_PLAYING(HttpStatus.CONFLICT, "진행 중인 게임이 있어 새 방을 만들 수 없습니다. 하던 게임을 끝내거나 나간 뒤에 만들어주세요."),
 
     // Game Play (미션 대결)
     GAME_NOT_RUNNING(HttpStatus.BAD_REQUEST, "게임이 진행 중이 아닙니다."),
