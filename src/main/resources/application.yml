@@ -156,4 +156,7 @@ tourism:
     key: ${TOURISM_API_KEY}
     base-url: https://apis.data.go.kr/B551011/LocgoHubTarService1
     kor-service-base-url: https://apis.data.go.kr/B551011/KorService2
-    cache-hours: 24
+    # 데이터랩 통계는 월 단위로 갱신되므로 짧게 캐시해도 신선도 손실이 없다.
+    # 공모전 심사가 인증키의 실제 API 호출 이력을 검증하므로 실시간 호출에 가깝게 유지한다 —
+    # 늘리기 전에 그 제약을 먼저 확인할 것.
+    cache-hours: ${TOURISM_API_CACHE_HOURS:1}
